@@ -41,6 +41,11 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
 #entropy{padding:12px;border:1px solid var(--line);border-radius:8px;background:#061513}
 #entropy .ends{display:flex;justify-content:space-between;font:500 12px Oswald,sans-serif;letter-spacing:.12em;text-transform:uppercase}
 #entropy .ends b{color:var(--hi);font-weight:500}#entropy .ends i{color:var(--ac);font-style:normal}
+#degBox{margin-top:8px;padding:12px;border:1px solid #4a1414;border-radius:8px;background:#140707}
+#degBox .ends{display:flex;justify-content:space-between;font:500 12px Oswald,sans-serif;letter-spacing:.12em;text-transform:uppercase}
+#degBox .ends b{color:var(--mut);font-weight:500}#degBox .ends i{color:#e0453a;font-style:normal}
+#deg{accent-color:#9B1B1B}
+#dval{font-family:"Special Elite",monospace;color:#e8b4ae;text-align:center;font-size:13px;margin-top:2px}
 #cval{font-family:"Special Elite",monospace;color:var(--tx);text-align:center;font-size:13px;margin-top:2px}
 .seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
 .seg button{flex:1;border:0;border-radius:0;background:#061513}
@@ -69,11 +74,17 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
         <input type="range" id="chaos" min="0" max="100" value="12">
         <div id="cval">entropia 0.12</div>
       </div>
+      <div id="degBox">
+        <div class="ends"><b>Puro</b><i>Degenerado</i></div>
+        <input type="range" id="deg" min="0" max="100" value="0">
+        <div id="dval">degeneração 0.00</div>
+      </div>
       <div class="btns" style="margin-top:8px">
         <button data-preset="ordem">Ordem</button>
         <button data-preset="liturgia">Liturgia</button>
         <button data-preset="fissura">Fissura</button>
         <button data-preset="ruina">Ruína</button>
+        <button data-preset="degenerado">Degenerado</button>
       </div>
     </div>
 
@@ -168,6 +179,7 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
         <div><label>Fundo</label><input type="color" id="bg"></div>
         <div><label>Traço</label><input type="color" id="fg"></div>
         <div><label>Destaque</label><input type="color" id="ac"></div>
+        <div><label>Sangue</label><input type="color" id="blood"></div>
       </div>
       <label class="chk"><input type="checkbox" id="transparent"> Exportar sem fundo</label>
     </div>
@@ -303,7 +315,7 @@ function drawCorner(out,style,cx,cy,R,d,rot){
 }
 
 /* ---------- medalhão ---------- */
-function drawMedal(out,cx,cy,r,N,K,d,rot,raysDir,rays){
+function drawMedal(out,cx,cy,r,N,K,d,rot,raysDir,rays,dg,sd){
   out.push(S_(circlePts(cx,cy,r),{w:1.1}));
   out.push(S_(circlePts(cx,cy,r*.84),{w:.6}));
   polyPts(cx,cy,r*.8,N,rot,K).forEach(p=>out.push(S_(p,{w:.7})));
@@ -314,6 +326,9 @@ function drawMedal(out,cx,cy,r,N,K,d,rot,raysDir,rays){
     if(d>=3)out.push(S_(circlePts(x,y,r*.05),{fill:true}));
     if(d>=4){for(let j=0;j<4;j++){const b=a+j/4*TAU;out.push(S_(circlePts(x+r*.13*Math.cos(b),y+r*.13*Math.sin(b),r*.035,8),{w:.4}));}}}}
   if(d>=5){polyPts(cx,cy,r*.42,N,rot+Math.PI/N,K).forEach(p=>out.push(S_(p,{w:.5})));}
+  if(dg>.35){const ge=g01(dg,.35,.8);const [up,dn,whole]=vesica(cx,cy,r*.62,r*(.12+ge*.22),rot+Math.PI/2);
+    out.push(S_(whole,{fill:true,bgf:true,brk:false}));out.push(S_(up,{w:.8}));out.push(S_(dn,{w:.8}));
+    const [u2,d2,sl]=vesica(cx,cy,r*(.1+ge*.18),r*.03+ge*r*.05,rot);out.push(S_(sl,{fill:true,bl:true,brk:false}));}
   if(rays){for(let i=-6;i<=6;i++){const a=raysDir+i*0.13;const l=r*(i%2?0.7:1.3);
     out.push(S_([[cx+(r+1.5)*Math.cos(a),cy+(r+1.5)*Math.sin(a)],[cx+(r+1.5+l)*Math.cos(a),cy+(r+1.5+l)*Math.sin(a)]],{w:.6}));}}
 }
@@ -329,6 +344,110 @@ function koch(a,b,d,amp){
   return out;
 }
 
+/* ============================================================
+   DEGENERAÇÃO — carne, sangue, olhos, dentes
+   cada elemento tem um limiar fixo (estável ao mexer no slider)
+   ============================================================ */
+const h01=(s,tag,k)=>hashStr(s+'|'+tag+'|'+k)/4294967296;
+const g01=(dg,a,b)=>clamp((dg-a)/(b-a),0,1); // rampa de crescimento
+function vesica(x,y,r,h,a0){
+  const rr=(r*r+h*h)/(2*h),off=rr-h,ang=Math.asin(Math.min(1,r/rr));
+  const up=arcPts(0,off,rr,-Math.PI/2-ang,-Math.PI/2+ang),dn=arcPts(0,-off,rr,Math.PI/2-ang,Math.PI/2+ang);
+  const tr=p=>p.map(([u,v])=>[x+u*Math.cos(a0)-v*Math.sin(a0),y+u*Math.sin(a0)+v*Math.cos(a0)]);
+  return [tr(up),tr(dn),tr(up.concat(dn.slice(1)))];
+}
+function eye(out,x,y,w,a0,seed,dg){
+  const r=w/2,h=w*.3;const [up,dn,whole]=vesica(x,y,r,h,a0);
+  out.push(S_(whole,{fill:true,bgf:true,brk:false}));
+  out.push(S_(up,{w:.8}));out.push(S_(dn,{w:.8}));
+  const lk=(h01(seed,'olhar',0)*2-1)*r*.45,lv=(h01(seed,'olhar',1)*2-1)*h*.25;
+  const ix=x+lk*Math.cos(a0)-lv*Math.sin(a0),iy=y+lk*Math.sin(a0)+lv*Math.cos(a0);
+  out.push(S_(circlePts(ix,iy,h*.72,14),{w:.55}));
+  out.push(S_(circlePts(ix,iy,h*.36,10),{fill:true}));
+  if(dg>.6){for(let i=0;i<4;i++){const s=i<2?-1:1;const a=a0+(i%2?.25:-.25)+(s<0?Math.PI:0);
+    const p0=[x+Math.cos(a)*r*.92,y+Math.sin(a)*r*.92];const pts=[p0];let px=p0[0],py=p0[1];
+    for(let k=0;k<4;k++){px+=(ix-px)*.22+(h01(seed,'v'+i,k)-.5)*.6;py+=(iy-py)*.22+(h01(seed,'w'+i,k)-.5)*.6;pts.push([px,py]);}
+    out.push(S_(pts,{w:.3,bl:true}));}}
+}
+function vein(out,x,y,a,len,w,depth,seed,tag){
+  const n=Math.max(3,Math.round(len/1.5));const pts=[[x,y]];let ang=a;
+  for(let i=1;i<=n;i++){ang+=(h01(seed,tag,i)-.5)*.5;x+=Math.cos(ang)*len/n;y+=Math.sin(ang)*len/n;pts.push([x,y]);}
+  out.push(S_(pts,{w,bl:true,brk:false}));
+  if(depth>0&&len>2){
+    vein(out,x,y,ang-.45-h01(seed,tag,'l')*.3,len*.68,w*.7,depth-1,seed,tag+'l');
+    if(h01(seed,tag,'b')<.8)vein(out,x,y,ang+.45+h01(seed,tag,'r')*.3,len*.6,w*.7,depth-1,seed,tag+'r');
+  }
+}
+function tentacle(out,x,y,a,L,W0,curl,suckers,seed){
+  const N=48,cl=[];let ang=a,px=x,py=y;
+  for(let i=0;i<=N;i++){const t=i/N;cl.push([px,py,ang,t]);ang+=curl*(.2+t*t*2.4)/N*6;px+=Math.cos(ang)*L/N;py+=Math.sin(ang)*L/N;}
+  const wid=t=>W0*Math.pow(1-t,.85)+.25;
+  const L1=cl.map(([px,py,an,t])=>[px+Math.cos(an+Math.PI/2)*wid(t)/2,py+Math.sin(an+Math.PI/2)*wid(t)/2]);
+  const L2=cl.map(([px,py,an,t])=>[px-Math.cos(an+Math.PI/2)*wid(t)/2,py-Math.sin(an+Math.PI/2)*wid(t)/2]).reverse();
+  out.push(S_(L1.concat(L2),{fill:true,brk:false}));
+  if(suckers>0){for(let i=3;i<N-8;i+=3){if(h01(seed,'vent',i)>suckers)continue;const [px,py,an,t]=cl[i];const sr=wid(t)*.28;
+    const sx=px+Math.cos(an+Math.PI/2*Math.sign(curl))*wid(t)*.18,sy=py+Math.sin(an+Math.PI/2*Math.sign(curl))*wid(t)*.18;
+    out.push(S_(circlePts(sx,sy,sr,10),{fill:true,bgf:true}));}}
+}
+function mouth(out,cx,cy,w,hh,seed,dg){
+  // lábios (vesica larga), interior em sangue, dentes irregulares
+  const [up,dn,whole]=vesica(cx,cy,w/2,hh,0);
+  out.push(S_(whole.map(([x,y])=>[cx+(x-cx)*.96,cy+(y-cy)*.9]),{fill:true,bl:true,brk:false}));
+  out.push(S_(up,{w:1.1}));out.push(S_(dn,{w:1.1}));
+  const n=Math.max(4,Math.round(w/2.6));
+  for(let i=0;i<n;i++){const t=(i+.5)/n;const x=cx-w/2+w*t;const half=w/n*.5;
+    const env=Math.sqrt(Math.max(0,1-Math.pow((x-cx)/(w/2),2)))*hh;
+    const lu=env*(.55+h01(seed,'du',i)*.75),ld=env*(.45+h01(seed,'dd',i)*.7);
+    out.push(S_([[x-half,cy-env*.92],[x+(h01(seed,'tx',i)-.5)*half,cy-env*.92+lu],[x+half,cy-env*.92]],{fill:true,brk:false}));
+    out.push(S_([[x-half,cy+env*.92],[x+(h01(seed,'bx',i)-.5)*half,cy+env*.92-ld],[x+half,cy+env*.92]],{fill:true,brk:false}));}
+}
+function degenerate(out,p,C){
+  const dg=p.dg;if(dg<=0)return;
+  const sd=p.degSeed;const {QW,QH,m,offs,inner,P,cs,hasCorner,mr,mcx,mcy,ownTop,ownLeft,es,startT,gap}=C;
+  const o0=offs[0];
+  const lines=[{ax:'x',from:hasCorner?m+cs*.5:m,to:mr>0?QW-mr-1:QW},{ax:'y',from:hasCorner?m+cs*.5:m,to:mr>0?QH-mr-1:QH}];
+  const mp=(ax,t,s)=>ax==='x'?[t,s]:[s,t];
+  // 1. espinhos na linha externa (arame farpado)
+  lines.forEach(L=>{for(let k=0,t=L.to-2.5;t>L.from;k++,t-=4.2){
+    if(h01(sd,'esp'+L.ax,k)>=(dg-.08)*1.5)continue;
+    const sz=(.8+dg*2.6)*(.6+h01(sd,'esz'+L.ax,k)*.8);const dir=k%2?-1:1;const b=.55+dg*.4;
+    out.push(S_([mp(L.ax,t-b,o0),mp(L.ax,t+(h01(sd,'ex',k)-.5)*1.2,o0-dir*sz),mp(L.ax,t+b,o0)],{fill:true}));}});
+  // 2. suturas atravessando a linha externa
+  lines.forEach(L=>{for(let k=0,t=L.to-5;t>L.from;k++,t-=7.5){
+    if(h01(sd,'sut'+L.ax,k)>=(dg-.3)*1.7)continue;const len=2.2+dg*2.5,sk=(h01(sd,'sk'+L.ax,k)-.5)*1.4;
+    out.push(S_([mp(L.ax,t-sk,o0-len),mp(L.ax,t+sk,o0+len)],{w:.6}));
+    out.push(S_(circlePts(...mp(L.ax,t-sk,o0-len),.35,6),{fill:true}));out.push(S_(circlePts(...mp(L.ax,t+sk,o0+len),.35,6),{fill:true}));}});
+  // 3. veias saindo do canto (e dos medalhões)
+  const gv=g01(dg,.12,1);
+  if(gv>0&&hasCorner){const n=1+Math.round(gv*3);
+    for(let i=0;i<n;i++){const a=Math.PI/4+(i-(n-1)/2)*.45+(h01(sd,'va',i)-.5)*.2;
+      vein(out,P+Math.cos(a)*cs*.5,P+Math.sin(a)*cs*.5,a,cs*(.25+gv*1.6)*(.7+h01(sd,'vl',i)*.5),.55+gv*.9,1+Math.floor(gv*3.5),sd,'vc'+i);}}
+  if(mr>0&&dg>.4){const gm=g01(dg,.4,1);
+    if(ownTop)for(let i=0;i<2;i++)vein(out,QW+(i?1:-1)*mr*.4,mcy+mr*.9,Math.PI/2+(i?-.3:.3),mr*(.5+gm*2),.5+gm*.6,1+Math.floor(gm*2),sd,'vm'+i);
+    if(ownLeft)for(let i=0;i<2;i++)vein(out,mcx+mr*.9,QH+(i?1:-1)*mr*.4,(i?.3:-.3),mr*(.5+gm*2),.5+gm*.6,1+Math.floor(gm*2),sd,'vn'+i);}
+  // 4. dentes ao longo da borda interna
+  const gt=g01(dg,.45,.95);
+  if(gt>0)lines.forEach(L=>{const tw=2.4+h01(sd,'tw',0)*1.2;for(let k=0,t=startT;t<L.to-tw;k++,t+=tw){
+    if(h01(sd,'den'+L.ax,k)>=gt*1.4)continue;const len=(1.5+h01(sd,'dl'+L.ax,k)*4.5)*gt*(1+dg);
+    out.push(S_([mp(L.ax,t,inner),mp(L.ax,t+tw*(.35+h01(sd,'dx'+L.ax,k)*.3),inner+len),mp(L.ax,t+tw,inner)],{fill:true,brk:false}));}});
+  // 5. pústulas
+  if(dg>.62)lines.forEach(L=>{for(let k=0,t=startT+3;t<L.to;k++,t+=6.5){
+    if(h01(sd,'pus'+L.ax,k)>=(dg-.62)*2.6)continue;const nc=1+Math.floor(h01(sd,'pn',k)*3);
+    for(let j=0;j<nc;j++){const r=.7+h01(sd,'pr'+L.ax,k*7+j)*1.6*dg;const off=(h01(sd,'po',k*7+j)-.5)*3;
+      const [x,y]=mp(L.ax,t+off,inner+(j%2?-1:1)*r*.6);
+      out.push(S_(circlePts(x,y,r,12),{fill:true}));out.push(S_(circlePts(x-r*.2,y-r*.2,r*.55,10),{fill:true,bgf:true}));}}});
+  // 6. medalhão vira boca
+  if(mr>0&&ownTop&&dg>.5){const gb=g01(dg,.5,.95);const w=mr*(1.3+gb*1.4),hh=w*(.12+gb*.16);
+    mouth(out,QW,mcy+mr+hh+2.5,w,hh,sd,dg);}
+  // 7. tentáculos do canto
+  const gT=g01(dg,.55,1);
+  if(gT>0&&hasCorner){const nt=dg>.8?2:1;
+    for(let i=0;i<nt;i++){const a=Math.PI/4+(i?-.5:.5)*(nt-1)+(h01(sd,'ta',i)-.5)*.3;
+      tentacle(out,P+Math.cos(a)*cs*.35,P+Math.sin(a)*cs*.35,a,cs*(.5+gT*2.2)*(i?.75:1),2+gT*5.5,(h01(sd,'tc',i)<.5?-1:1)*(1+h01(sd,'tk',i)),g01(dg,.75,1),sd+i);}}
+  // 8. olho no centro do canto
+  if(hasCorner&&dg>.72){const ge=g01(dg,.72,1);eye(out,P,P,cs*(.25+ge*.35),Math.PI/4,sd+77,dg);}
+}
+
 /* ---------- parâmetros ---------- */
 function baseParams(S){
   const d=S.dens;
@@ -337,13 +456,13 @@ function baseParams(S){
     lineCorner:S.lineCorner, cornerStyle:S.corner, cs:S.cs, depth:S.depth,
     edgeStyle:d<0.15?'nenhum':S.edge, edgeSize:3+d*2.2, edgeSp:lerp(9,5,d),
     medal:S.medal, mr:S.mr, medalN:[6,8,8,12,12][Math.min(4,Math.floor(d*5))], medalK:3,
-    rays:S.rays, glyphSeed:hashStr(S.seed+'glifo'), glyphSym:1,
+    rays:S.rays, glyphSeed:hashStr(S.seed+'glifo'), glyphSym:1, dg:S.deg||0, degSeed:hashStr(S.seed+'deg'),
     rot:0, overshoot:0, mrot:0, flipEdge:false
   };
 }
 // variação por quadrante/página: todos os sorteios acontecem sempre (estável ao mexer no slider)
 function vary(p,rng,c){
-  const R=Array.from({length:24},()=>rng());const q=Object.assign({},p);
+  const R=Array.from({length:27},()=>rng());const q=Object.assign({},p);
   const j=(v,amt,i)=>v*(1+(R[i]*2-1)*amt*c);
   q.gap=j(p.gap,.7,0); q.cs=j(p.cs,.55,1); q.mr=j(p.mr,.6,2); q.edgeSize=j(p.edgeSize,.7,3); q.edgeSp=j(p.edgeSp,.6,4);
   if(R[5]<c*.55)q.medalN=[5,6,7,8,9,11,12,13][Math.floor(R[6]*8)];
@@ -356,6 +475,8 @@ function vary(p,rng,c){
   if(R[15]<c*.4)q.depth=clamp(p.depth+(R[16]<.5?-1:1),1,5);
   q.rot=p.rot+(R[17]*2-1)*c*.9;
   q.mrot=p.mrot+(R[22]*2-1)*c*.8;
+  if(R[24]<c*.7)q.degSeed=(p.degSeed^Math.floor(R[25]*1e9))>>>0;
+  q.dg=clamp(p.dg*(1+(R[26]*2-1)*c*.45),0,1);
   q.overshoot=p.overshoot+c*c*R[18]*16;
   if(R[19]<c*.3)q.lineCorner=['arco','caixa','reto'][Math.floor(R[23]*3)];
   return q;
@@ -416,8 +537,8 @@ function buildQuadrant(p,QW,QH,m,q,S){
   }
   // ---- medalhões ----
   if(mr>0){
-    if(ownTop)drawMedal(out,QW,mcy,mr,p.medalN,p.medalK,p.depth,-Math.PI/2+p.mrot,Math.PI/2,p.rays);
-    if(ownLeft)drawMedal(out,mcx,QH,mr,p.medalN,p.medalK,p.depth,Math.PI+p.mrot,0,p.rays);
+    if(ownTop)drawMedal(out,QW,mcy,mr,p.medalN,p.medalK,p.depth,-Math.PI/2+p.mrot,Math.PI/2,p.rays,p.dg,p.degSeed);
+    if(ownLeft)drawMedal(out,mcx,QH,mr,p.medalN,p.medalK,p.depth,Math.PI+p.mrot,0,p.rays,p.dg,p.degSeed);
   }
   // ---- faixa da borda ----
   const es=p.edgeSize;
@@ -444,6 +565,8 @@ function buildQuadrant(p,QW,QH,m,q,S){
     for(let k=0;k<n;k++){
       const t=run.to-(mr>0?sp*.5:sp*.5)-k*sp; if(t<run.from)break;
       const c0=yb+es*.55;
+      if(p.dg>.28&&h01(p.degSeed,'olhoB'+run.axis,k)<(p.dg-.28)*1.3){
+        const ew=Math.min(sp*1.8,es*(1.7+p.dg));const [ex,ey]=map(t,yb+ew*.32+.4);eye(out,ex,ey,ew,run.axis==='x'?0:Math.PI/2,p.degSeed+k*31+(run.axis==='x'?0:9999),p.dg);continue;}
       if(st==='losangos'){const h=es*.5,w=Math.min(sp*.42,es*.5);
         out.push(S_([map(t-w,c0),map(t,c0-h),map(t+w,c0),map(t,c0+h),map(t-w,c0)],{w:.6}));
         out.push(S_(circlePts(...map(t+sp/2,c0),.35,8),{fill:true}));}
@@ -461,6 +584,7 @@ function buildQuadrant(p,QW,QH,m,q,S){
       const yy=yb+es*1.25+1.2;out.push(S_([map(run.from,yy),map(run.to+(mr>0?0:0),yy)],{w:.45}));
     }
   });
+  degenerate(out,p,{QW,QH,m,offs,inner,P,cs,hasCorner,mr,mcx,mcy,ownTop,ownLeft,es,startT,gap});
   return out;
 }
 
@@ -549,6 +673,52 @@ function generate(S){
     const pts=[];for(let k=0;k<=12;k++){const t=k/12;pts.push([x+Math.sin(t*3+i)*.4,y+L*t]);}
     fin.push(S_(pts,{w:1.4+r,ac}));fin.push(S_(circlePts(x,y+L+r*.4,r,10),{fill:true,ac}));
   }
+  // ---- SANGUE (degeneração): escorridos, respingos, poça ----
+  const dg=S.deg||0;
+  if(dg>0){
+    const rb2=RNG(S.seed,'sangue');
+    const pages=dupla?[[0,pw],[pw,pw]]:[[0,pw]];
+    const mirrorX=(x)=>{for(const [x0,w] of pages){if(x>=x0&&x<=x0+w)return x0+w-(x-x0);}return W-x;};
+    // na ordem o sangue também é espelhado (dentro da página e entre as páginas)
+    const both=(fn,mir,mir2)=>{fn(1,0);if(mir)fn(-1,0);if(dupla&&mir2){fn(1,1);if(mir)fn(-1,1);}};
+    const flipS=x=>W-x;
+    // escorridos: das linhas de cima, dos medalhões e dos cantos
+    for(let i=0;i<60;i++){
+      const th=rb2(),u=rb2(),v=rb2(),r1=rb2(),r2=rb2(),r3=rb2(),mir=rb2()>=c,mir2=rb2()>=c*1.3;
+      if(th>=dg*dg*.9+dg*.25)continue;
+      const px=pages[Math.floor(u*pages.length)];const x0=px[0]+S.margin+v*(px[1]-2*S.margin);
+      const y0=S.margin+r3*6+(r2<.25?(H-2*S.margin-6):0);
+      const L=(4+r1*r1*90)*(.25+dg*1.1);const wd=(.5+r2*1.4)*(.5+dg);
+      both((sg,sp)=>{let x=sg>0?x0:mirrorX(x0);if(sp)x=flipS(x);const A=[],B=[];
+        for(let k=0;k<=18;k++){const t=k/18;const cx=x+Math.sin(t*4+i)*.35*(sp?-1:1)*sg;const hw=wd*.5*(1-.45*t+.25*Math.sin(t*9+i*2.1)*t);
+          A.push([cx-hw,y0+L*t]);B.push([cx+hw,y0+L*t]);}
+        fin.push(S_(A.concat(B.reverse()),{fill:true,bl:true,brk:false}));
+        fin.push(S_(circlePts(x+Math.sin(4+i)*.35*(sp?-1:1)*sg,y0+L+wd*.3,wd*.78,12),{fill:true,bl:true}));},mir,mir2);
+    }
+    // respingos de sangue
+    for(let i=0;i<40;i++){
+      const th=rb2(),u=rb2(),v=rb2(),r1=rb2(),dir=rb2()*TAU,mir=rb2()>=c,mir2=rb2()>=c*1.3;const drops=[];for(let k=0;k<10;k++)drops.push([rb2(),rb2(),rb2()]);
+      if(th>=dg*.85)continue;
+      const side=Math.floor(u*4);const px=pages[Math.floor(v*pages.length)];
+      let x0,y0;if(side<2){x0=px[0]+S.margin+r1*(px[1]-2*S.margin);y0=side?H-S.margin:S.margin;}
+      else{x0=px[0]+(side===2?S.margin:px[1]-S.margin);y0=S.margin+r1*(H-2*S.margin);}
+      const R=1+Math.pow(rb2(),2)*11*dg;const nb=makeNoise(RNG(S.seed,'sb'+i));
+      both((sg,sp)=>{let x=sg>0?x0:mirrorX(x0);if(sp)x=flipS(x);const ss=sg*(sp?-1:1);const blob=[];
+        for(let k=0;k<=32;k++){const a=k/32*TAU;const rr=R*(1+.5*nb(Math.cos(a)*1.4*ss+i,Math.sin(a)*1.4));blob.push([x+rr*Math.cos(a),y0+rr*Math.sin(a)]);}
+        fin.push(S_(blob,{fill:true,bl:true}));
+        drops.forEach(([a,b,cc],k)=>{if(k>3+dg*7)return;const d=R*(1.3+a*3.5);const an=(ss>0?dir:Math.PI-dir)+(b-.5)*1.3*ss;
+          fin.push(S_(circlePts(x+d*Math.cos(an),y0+d*Math.sin(an),.2+cc*R*.28,8),{fill:true,bl:true}));});},mir,mir2);
+    }
+    // poça no pé da página
+    if(dg>.45){const gp=g01(dg,.45,1);const np=makeNoise(RNG(S.seed,'poca'));
+      pages.forEach(([x0,w],pi)=>{const top=[];const n=80;
+        for(let k=0;k<=n;k++){const x=x0+w*k/n;const hgt=gp*26*(.45+.55*(np(x*.045+pi*9,1.3)*.5+.5));top.push([x,H-hgt]);}
+        fin.push(S_(top.concat([[x0+w,H+1],[x0,H+1]]),{fill:true,bl:true,brk:false}));
+        // gotas subindo da poça (salpicos)
+        for(let k=0;k<Math.round(gp*14);k++){const x=x0+w*h01(S.seed,'pg'+pi,k);const y=H-gp*26-2-h01(S.seed,'ph'+pi,k)*10*gp;
+          fin.push(S_(circlePts(x,y,.3+h01(S.seed,'pr'+pi,k)*1.1,8),{fill:true,bl:true}));}
+      });}
+  }
   // rabiscos
   for(let i=0;i<8;i++){const th=rx();const [x0,y0]=edgePoint();const n=40+Math.floor(rx()*80);const sd=rx()*1000;
     if(th>=Math.max(0,c-.55)*1.6)continue;
@@ -564,31 +734,30 @@ const f2=n=>(Math.round(n*100)/100).toString();
 function toSVG(G,S,opts){
   opts=opts||{};
   const sw=S.weight*0.3528;
-  const strokes={fg:[],ac:[]},fills={fg:[],ac:[]};
+  const COL={fg:S.fg,ac:S.ac,bl:S.blood,bg:S.bg};
+  const key=sh=>sh.bgf?'bg':sh.bl?'bl':sh.ac?'ac':'fg';
+  // mantém a ordem de pintura e junta formas vizinhas com o mesmo estilo
+  const runs=[];
   G.shapes.forEach(sh=>{if(sh.p.length<2)return;
     const d='M'+sh.p.map(([x,y])=>f2(x)+' '+f2(y)).join('L')+(sh.fill?'Z':'');
-    if(sh.fill)(sh.ac?fills.ac:fills.fg).push(d);
-    else{const k=sh.ac?'ac':'fg';strokes[k].push({d,w:sh.w});}
+    const k=sh.fill?'F'+key(sh):'S'+(key(sh)==='bg'?'fg':key(sh))+'|'+f2(Math.max(.08,sh.w*sw));
+    const last=runs[runs.length-1];
+    if(last&&last.k===k)last.d.push(d);else runs.push({k,d:[d]});
   });
-  // agrupa traços por espessura
-  const grp=(arr,col)=>{const by={};arr.forEach(s=>{const w=f2(Math.max(.08,s.w*sw));(by[w]=by[w]||[]).push(s.d);});
-    return Object.entries(by).map(([w,ds])=>`<path d="${ds.join('')}" stroke="${col}" stroke-width="${w}"/>`).join('\n');};
+  const body=runs.map(r=>{
+    if(r.k[0]==='F')return `<path d="${r.d.join('')}" fill="${COL[r.k.slice(1)]}"/>`;
+    const [c,w]=r.k.slice(1).split('|');
+    return `<path d="${r.d.join('')}" fill="none" stroke="${COL[c]}" stroke-width="${w}"/>`;
+  }).join('\n');
   const bg=(opts.noBg)?'':`<rect width="${f2(G.W)}" height="${f2(G.H)}" fill="${S.bg}"/>`;
   const guides=opts.guides?`<g fill="none" stroke="${S.fg}" stroke-opacity=".18" stroke-width=".3" stroke-dasharray="2 2">${G.dupla?`<line x1="${G.pw}" y1="0" x2="${G.pw}" y2="${G.H}"/>`:''}</g>`:'';
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${f2(G.W)}mm" height="${f2(G.H)}mm" viewBox="0 0 ${f2(G.W)} ${f2(G.H)}">
-<title>Entropia — moldura ${S.seed} — entropia ${S.chaos.toFixed(2)}</title>
+<title>Entropia — moldura ${S.seed} — entropia ${S.chaos.toFixed(2)} — degeneração ${(S.deg||0).toFixed(2)}</title>
 <defs><clipPath id="pg"><rect width="${f2(G.W)}" height="${f2(G.H)}"/></clipPath></defs>
 ${bg}
 <g clip-path="url(#pg)">
-<g id="traco" fill="none" stroke-linecap="round" stroke-linejoin="round">
-${grp(strokes.fg,S.fg)}
-</g>
-<g id="destaque" fill="none" stroke-linecap="round" stroke-linejoin="round">
-${grp(strokes.ac,S.ac)}
-</g>
-<g id="preenchimentos" stroke="none">
-${fills.fg.length?`<path d="${fills.fg.join('')}" fill="${S.fg}"/>`:''}
-${fills.ac.length?`<path d="${fills.ac.join('')}" fill="${S.ac}"/>`:''}
+<g stroke-linecap="round" stroke-linejoin="round">
+${body}
 </g>
 </g>
 ${guides}
@@ -597,19 +766,20 @@ ${guides}
 
 /* ---------- estado / UI ---------- */
 const PALS={
-  escuro:{bg:'#071A18',fg:'#A4D8A7',ac:'#D9442B'},
-  claro:{bg:'#E9E2D0',fg:'#071A18',ac:'#D9442B'},
-  pb:{bg:'#FFFFFF',fg:'#000000',ac:'#000000'},
-  amarelo:{bg:'#F4E21B',fg:'#0A0A0A',ac:'#0A0A0A'}
+  escuro:{bg:'#071A18',fg:'#A4D8A7',ac:'#D9442B',blood:'#B3161B'},
+  claro:{bg:'#E9E2D0',fg:'#071A18',ac:'#D9442B',blood:'#8E0E12'},
+  pb:{bg:'#FFFFFF',fg:'#000000',ac:'#000000',blood:'#000000'},
+  amarelo:{bg:'#F4E21B',fg:'#0A0A0A',ac:'#0A0A0A',blood:'#C4121A'}
 };
 const DEF={seed:'emunah',chaos:.12,layout:'dupla',size:'210x297',pw:210,ph:297,spine:'separadas',margin:14,
   dens:.6,depth:3,corner:'quadrado',lineCorner:'arco',cs:32,edge:'escrita',medal:true,mr:13,rays:false,
-  weight:.9,bg:'#071A18',fg:'#A4D8A7',ac:'#D9442B',transparent:false,dpi:300,grain:true};
+  weight:.9,bg:'#071A18',fg:'#A4D8A7',ac:'#D9442B',blood:'#B3161B',deg:0,transparent:false,dpi:300,grain:true};
 const PRESETS={
-  ordem:{chaos:0,dens:.85,depth:4,corner:'quadrado',lineCorner:'arco',edge:'escrita',medal:true,rays:false},
-  liturgia:{chaos:.06,dens:1,depth:3,corner:'rosacea',lineCorner:'caixa',edge:'losangos',medal:true,rays:true},
-  fissura:{chaos:.42,dens:.7,depth:3,corner:'espinhos',lineCorner:'arco',edge:'dentes',medal:true,rays:true},
-  ruina:{chaos:.85,dens:.6,depth:3,corner:'olho',lineCorner:'reto',edge:'escrita',medal:true,rays:false}
+  ordem:{chaos:0,deg:0,dens:.85,depth:4,corner:'quadrado',lineCorner:'arco',edge:'escrita',medal:true,rays:false},
+  liturgia:{chaos:.06,deg:0,dens:1,depth:3,corner:'rosacea',lineCorner:'caixa',edge:'losangos',medal:true,rays:true},
+  fissura:{chaos:.42,deg:0,dens:.7,depth:3,corner:'espinhos',lineCorner:'arco',edge:'dentes',medal:true,rays:true},
+  ruina:{chaos:.85,deg:0,dens:.6,depth:3,corner:'olho',lineCorner:'reto',edge:'escrita',medal:true,rays:false},
+  degenerado:{chaos:.3,deg:.8,dens:.75,depth:3,corner:'espinhos',lineCorner:'arco',edge:'escrita',medal:true,rays:false}
 };
 const WORDS=['emunah','lacrimah','eden','spiritum','apogeu','silencio','zeit','inclemente','revelado','adjuracao','codice','kamia','vozes','reliquia','verbum','vazio','exorcismo','degenerado','sintonia','desapego'];
 let S=Object.assign({},DEF);
@@ -618,11 +788,11 @@ try{const h=location.hash.slice(1);if(h){const o=JSON.parse(decodeURIComponent(e
 const $=id=>document.getElementById(id);
 const bindings=[
   ['seed','text'],['margin','int'],['dens','pct'],['depth','int'],['corner','sel'],['lineCorner','sel'],['cs','int'],
-  ['edge','sel'],['medal','chk'],['mr','int'],['rays','chk'],['weight','w'],['bg','col'],['fg','col'],['ac','col'],
+  ['edge','sel'],['medal','chk'],['mr','int'],['rays','chk'],['weight','w'],['bg','col'],['fg','col'],['ac','col'],['blood','col'],
   ['transparent','chk'],['spine','sel'],['dpi','int'],['grain','chk']
 ];
 function toUI(){
-  $('chaos').value=Math.round(S.chaos*100);
+  $('chaos').value=Math.round(S.chaos*100);$('deg').value=Math.round((S.deg||0)*100);
   bindings.forEach(([k,t])=>{const el=$(k);if(!el)return;
     if(t==='chk')el.checked=!!S[k];else if(t==='pct')el.value=Math.round(S[k]*100);else if(t==='w')el.value=Math.round(S[k]*10);else el.value=S[k];});
   $('size').value=S.size;$('pw').value=S.pw;$('ph').value=S.ph;
@@ -630,7 +800,7 @@ function toUI(){
   labels();
 }
 function labels(){
-  $('cval').textContent='entropia '+S.chaos.toFixed(2);
+  $('cval').textContent='entropia '+S.chaos.toFixed(2);$('dval').textContent='degeneração '+(S.deg||0).toFixed(2);
   $('marginV').textContent=S.margin;$('densV').textContent=Math.round(S.dens*100)+'%';$('depthV').textContent=S.depth;
   $('csV').textContent=S.cs;$('mrV').textContent=S.mr;$('weightV').textContent=S.weight.toFixed(1);
   $('customSize').style.display=S.size==='custom'?'flex':'none';
@@ -644,6 +814,7 @@ function render(){cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{
   labels();
 });}
 $('chaos').addEventListener('input',e=>{S.chaos=e.target.value/100;render();});
+$('deg').addEventListener('input',e=>{S.deg=e.target.value/100;render();});
 bindings.forEach(([k,t])=>{const el=$(k);if(!el)return;
   el.addEventListener(t==='chk'||t==='sel'?'change':'input',()=>{
     if(t==='chk')S[k]=el.checked;else if(t==='pct')S[k]=el.value/100;else if(t==='int')S[k]=parseInt(el.value,10)||0;
@@ -658,7 +829,7 @@ document.querySelectorAll('[data-pal]').forEach(b=>b.addEventListener('click',()
 $('dice').addEventListener('click',()=>{S.seed=WORDS[Math.floor(Math.random()*WORDS.length)]+'-'+Math.floor(Math.random()*999);toUI();render();});
 
 function toast(t){const el=$('toast');el.textContent=t;el.style.opacity=1;clearTimeout(toast.t);toast.t=setTimeout(()=>el.style.opacity=0,1800);}
-function fname(ext){return `moldura-${S.seed.replace(/[^a-z0-9-]+/gi,'_')}-e${Math.round(S.chaos*100)}-${S.layout}.${ext}`;}
+function fname(ext){return `moldura-${S.seed.replace(/[^a-z0-9-]+/gi,'_')}-e${Math.round(S.chaos*100)}${S.deg>0?'-d'+Math.round(S.deg*100):''}-${S.layout}.${ext}`;}
 function download(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
 $('expSvg').addEventListener('click',()=>{const g=generate(S);download(new Blob([toSVG(g,S,{noBg:S.transparent})],{type:'image/svg+xml'}),fname('svg'));toast('SVG exportado');});
 $('expPng').addEventListener('click',()=>{
