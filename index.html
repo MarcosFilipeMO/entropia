@@ -180,6 +180,7 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
         <div><label>Traço</label><input type="color" id="fg"></div>
         <div><label>Destaque</label><input type="color" id="ac"></div>
         <div><label>Sangue</label><input type="color" id="blood"></div>
+        <div><label>Grão</label><input type="color" id="grain2"></div>
       </div>
       <label class="chk"><input type="checkbox" id="transparent"> Exportar sem fundo</label>
     </div>
@@ -378,29 +379,6 @@ function vein(out,x,y,a,len,w,depth,seed,tag){
     if(h01(seed,tag,'b')<.8)vein(out,x,y,ang+.45+h01(seed,tag,'r')*.3,len*.6,w*.7,depth-1,seed,tag+'r');
   }
 }
-function tentacle(out,x,y,a,L,W0,curl,suckers,seed){
-  const N=48,cl=[];let ang=a,px=x,py=y;
-  for(let i=0;i<=N;i++){const t=i/N;cl.push([px,py,ang,t]);ang+=curl*(.2+t*t*2.4)/N*6;px+=Math.cos(ang)*L/N;py+=Math.sin(ang)*L/N;}
-  const wid=t=>W0*Math.pow(1-t,.85)+.25;
-  const L1=cl.map(([px,py,an,t])=>[px+Math.cos(an+Math.PI/2)*wid(t)/2,py+Math.sin(an+Math.PI/2)*wid(t)/2]);
-  const L2=cl.map(([px,py,an,t])=>[px-Math.cos(an+Math.PI/2)*wid(t)/2,py-Math.sin(an+Math.PI/2)*wid(t)/2]).reverse();
-  out.push(S_(L1.concat(L2),{fill:true,brk:false}));
-  if(suckers>0){for(let i=3;i<N-8;i+=3){if(h01(seed,'vent',i)>suckers)continue;const [px,py,an,t]=cl[i];const sr=wid(t)*.28;
-    const sx=px+Math.cos(an+Math.PI/2*Math.sign(curl))*wid(t)*.18,sy=py+Math.sin(an+Math.PI/2*Math.sign(curl))*wid(t)*.18;
-    out.push(S_(circlePts(sx,sy,sr,10),{fill:true,bgf:true}));}}
-}
-function mouth(out,cx,cy,w,hh,seed,dg){
-  // lábios (vesica larga), interior em sangue, dentes irregulares
-  const [up,dn,whole]=vesica(cx,cy,w/2,hh,0);
-  out.push(S_(whole.map(([x,y])=>[cx+(x-cx)*.96,cy+(y-cy)*.9]),{fill:true,bl:true,brk:false}));
-  out.push(S_(up,{w:1.1}));out.push(S_(dn,{w:1.1}));
-  const n=Math.max(4,Math.round(w/2.6));
-  for(let i=0;i<n;i++){const t=(i+.5)/n;const x=cx-w/2+w*t;const half=w/n*.5;
-    const env=Math.sqrt(Math.max(0,1-Math.pow((x-cx)/(w/2),2)))*hh;
-    const lu=env*(.55+h01(seed,'du',i)*.75),ld=env*(.45+h01(seed,'dd',i)*.7);
-    out.push(S_([[x-half,cy-env*.92],[x+(h01(seed,'tx',i)-.5)*half,cy-env*.92+lu],[x+half,cy-env*.92]],{fill:true,brk:false}));
-    out.push(S_([[x-half,cy+env*.92],[x+(h01(seed,'bx',i)-.5)*half,cy+env*.92-ld],[x+half,cy+env*.92]],{fill:true,brk:false}));}
-}
 function degenerate(out,p,C){
   const dg=p.dg;if(dg<=0)return;
   const sd=p.degSeed;const {QW,QH,m,offs,inner,P,cs,hasCorner,mr,mcx,mcy,ownTop,ownLeft,es,startT,gap}=C;
@@ -436,14 +414,6 @@ function degenerate(out,p,C){
     for(let j=0;j<nc;j++){const r=.7+h01(sd,'pr'+L.ax,k*7+j)*1.6*dg;const off=(h01(sd,'po',k*7+j)-.5)*3;
       const [x,y]=mp(L.ax,t+off,inner+(j%2?-1:1)*r*.6);
       out.push(S_(circlePts(x,y,r,12),{fill:true}));out.push(S_(circlePts(x-r*.2,y-r*.2,r*.55,10),{fill:true,bgf:true}));}}});
-  // 6. medalhão vira boca
-  if(mr>0&&ownTop&&dg>.5){const gb=g01(dg,.5,.95);const w=mr*(1.3+gb*1.4),hh=w*(.12+gb*.16);
-    mouth(out,QW,mcy+mr+hh+2.5,w,hh,sd,dg);}
-  // 7. tentáculos do canto
-  const gT=g01(dg,.55,1);
-  if(gT>0&&hasCorner){const nt=dg>.8?2:1;
-    for(let i=0;i<nt;i++){const a=Math.PI/4+(i?-.5:.5)*(nt-1)+(h01(sd,'ta',i)-.5)*.3;
-      tentacle(out,P+Math.cos(a)*cs*.35,P+Math.sin(a)*cs*.35,a,cs*(.5+gT*2.2)*(i?.75:1),2+gT*5.5,(h01(sd,'tc',i)<.5?-1:1)*(1+h01(sd,'tk',i)),g01(dg,.75,1),sd+i);}}
   // 8. olho no centro do canto
   if(hasCorner&&dg>.72){const ge=g01(dg,.72,1);eye(out,P,P,cs*(.25+ge*.35),Math.PI/4,sd+77,dg);}
 }
@@ -627,7 +597,7 @@ function generate(S){
   const amp=Math.pow(c,1.5)*4.5,fine=c*c*.5,fr=.035;
   const rb=RNG(S.seed,'quebra');
   const disp=(pts,A,F,NX,NY,o)=>pts.map(([x,y])=>[x+NX(x*fr+o,y*fr)*A+NX(x*.6,y*.6+o)*F,y+NY(x*fr,y*fr+o)*A+NY(x*.6+o,y*.6)*F]);
-  let fin=[];
+  let fin=[];const G_dots=[];
   shapes.forEach((sh,si)=>{
     if(c<0.001){fin.push(sh);return;}
     let pts=resample(sh.p,1.1);
@@ -668,56 +638,55 @@ function generate(S){
     fin.push(S_(pts,{w:w/(S.weight*0.3528),brk:false}));
   }
   // escorridos (do traço de cima para baixo)
-  for(let i=0;i<14;i++){const th=rx();const x=S.margin+rx()*(W-2*S.margin);const y=S.margin+rx()*3;const L=4+rx()*rx()*45;const r=.6+rx()*1.2;const ac=rx()<.3;
+  for(let i=0;i<14;i++){const th=rx();const x=S.margin+rx()*(W-2*S.margin);const y=S.margin+rx()*3;const L=4+rx()*rx()*45;const r=.6+rx()*1.2;rx();const ac=false;
     if(th>=e*.85)continue;
     const pts=[];for(let k=0;k<=12;k++){const t=k/12;pts.push([x+Math.sin(t*3+i)*.4,y+L*t]);}
     fin.push(S_(pts,{w:1.4+r,ac}));fin.push(S_(circlePts(x,y+L+r*.4,r,10),{fill:true,ac}));
   }
-  // ---- SANGUE (degeneração): escorridos, respingos, poça ----
+  // ---- DEGENERAÇÃO no mundo: gotas de sangue aleatórias + grão nas bordas ----
   const dg=S.deg||0;
   if(dg>0){
-    const rb2=RNG(S.seed,'sangue');
     const pages=dupla?[[0,pw],[pw,pw]]:[[0,pw]];
-    const mirrorX=(x)=>{for(const [x0,w] of pages){if(x>=x0&&x<=x0+w)return x0+w-(x-x0);}return W-x;};
-    // na ordem o sangue também é espelhado (dentro da página e entre as páginas)
-    const both=(fn,mir,mir2)=>{fn(1,0);if(mir)fn(-1,0);if(dupla&&mir2){fn(1,1);if(mir)fn(-1,1);}};
-    const flipS=x=>W-x;
-    // escorridos: das linhas de cima, dos medalhões e dos cantos
-    for(let i=0;i<60;i++){
-      const th=rb2(),u=rb2(),v=rb2(),r1=rb2(),r2=rb2(),r3=rb2(),mir=rb2()>=c,mir2=rb2()>=c*1.3;
-      if(th>=dg*dg*.9+dg*.25)continue;
-      const px=pages[Math.floor(u*pages.length)];const x0=px[0]+S.margin+v*(px[1]-2*S.margin);
-      const y0=S.margin+r3*6+(r2<.25?(H-2*S.margin-6):0);
-      const L=(4+r1*r1*90)*(.25+dg*1.1);const wd=(.5+r2*1.4)*(.5+dg);
-      both((sg,sp)=>{let x=sg>0?x0:mirrorX(x0);if(sp)x=flipS(x);const A=[],B=[];
-        for(let k=0;k<=18;k++){const t=k/18;const cx=x+Math.sin(t*4+i)*.35*(sp?-1:1)*sg;const hw=wd*.5*(1-.45*t+.25*Math.sin(t*9+i*2.1)*t);
-          A.push([cx-hw,y0+L*t]);B.push([cx+hw,y0+L*t]);}
-        fin.push(S_(A.concat(B.reverse()),{fill:true,bl:true,brk:false}));
-        fin.push(S_(circlePts(x+Math.sin(4+i)*.35*(sp?-1:1)*sg,y0+L+wd*.3,wd*.78,12),{fill:true,bl:true}));},mir,mir2);
-    }
-    // respingos de sangue
-    for(let i=0;i<40;i++){
-      const th=rb2(),u=rb2(),v=rb2(),r1=rb2(),dir=rb2()*TAU,mir=rb2()>=c,mir2=rb2()>=c*1.3;const drops=[];for(let k=0;k<10;k++)drops.push([rb2(),rb2(),rb2()]);
-      if(th>=dg*.85)continue;
-      const side=Math.floor(u*4);const px=pages[Math.floor(v*pages.length)];
-      let x0,y0;if(side<2){x0=px[0]+S.margin+r1*(px[1]-2*S.margin);y0=side?H-S.margin:S.margin;}
-      else{x0=px[0]+(side===2?S.margin:px[1]-S.margin);y0=S.margin+r1*(H-2*S.margin);}
-      const R=1+Math.pow(rb2(),2)*11*dg;const nb=makeNoise(RNG(S.seed,'sb'+i));
-      both((sg,sp)=>{let x=sg>0?x0:mirrorX(x0);if(sp)x=flipS(x);const ss=sg*(sp?-1:1);const blob=[];
-        for(let k=0;k<=32;k++){const a=k/32*TAU;const rr=R*(1+.5*nb(Math.cos(a)*1.4*ss+i,Math.sin(a)*1.4));blob.push([x+rr*Math.cos(a),y0+rr*Math.sin(a)]);}
+    // gotas de sangue: sem simetria, espalhadas perto das bordas e da moldura
+    const rb2=RNG(S.seed,'gotas');
+    for(let i=0;i<90;i++){
+      const th=rb2(),pi=rb2(),u=rb2(),v=rb2(),sz=rb2(),kind=rb2(),dir=rb2()*TAU;const extra=[];for(let k=0;k<8;k++)extra.push([rb2(),rb2(),rb2()]);
+      if(th>=dg*.75)continue;
+      const [x0,w]=pages[Math.floor(pi*pages.length)];
+      // posição: faixa de até ~30 mm a partir da borda da página
+      const band=8+dg*24;let x,y;
+      if(u<.5){x=x0+v*w;y=(u<.25)?v*0+Math.pow(rb2(),1.5)*band:H-Math.pow(rb2(),1.5)*band;}
+      else{y=v*H;x=(u<.75)?x0+Math.pow(rb2(),1.5)*band:x0+w-Math.pow(rb2(),1.5)*band;}
+      if(kind<.6){ // gota simples
+        const r=.25+Math.pow(sz,2.2)*(1.2+dg*2.2);
+        const nb=makeNoise(RNG(S.seed,'g'+i));const blob=[];
+        for(let k=0;k<=18;k++){const a=k/18*TAU;const rr=r*(1+.25*nb(Math.cos(a)+i,Math.sin(a)));blob.push([x+rr*Math.cos(a),y+rr*Math.sin(a)]);}
         fin.push(S_(blob,{fill:true,bl:true}));
-        drops.forEach(([a,b,cc],k)=>{if(k>3+dg*7)return;const d=R*(1.3+a*3.5);const an=(ss>0?dir:Math.PI-dir)+(b-.5)*1.3*ss;
-          fin.push(S_(circlePts(x+d*Math.cos(an),y0+d*Math.sin(an),.2+cc*R*.28,8),{fill:true,bl:true}));});},mir,mir2);
+      }else{ // respingo: mancha irregular + gotículas em volta
+        const R=.8+Math.pow(sz,2)*(2+dg*7);const nb=makeNoise(RNG(S.seed,'r'+i));const blob=[];
+        for(let k=0;k<=30;k++){const a=k/30*TAU;const rr=R*(1+.55*nb(Math.cos(a)*1.5+i,Math.sin(a)*1.5));blob.push([x+rr*Math.cos(a),y+rr*Math.sin(a)]);}
+        fin.push(S_(blob,{fill:true,bl:true}));
+        extra.forEach(([a,b,cc],k)=>{if(k>2+dg*6)return;const d=R*(1.2+a*3.2);const an=dir+(b-.5)*2.4;
+          fin.push(S_(circlePts(x+d*Math.cos(an),y+d*Math.sin(an),.15+cc*R*.22,8),{fill:true,bl:true}));});
+      }
     }
-    // poça no pé da página
-    if(dg>.45){const gp=g01(dg,.45,1);const np=makeNoise(RNG(S.seed,'poca'));
-      pages.forEach(([x0,w],pi)=>{const top=[];const n=80;
-        for(let k=0;k<=n;k++){const x=x0+w*k/n;const hgt=gp*26*(.45+.55*(np(x*.045+pi*9,1.3)*.5+.5));top.push([x,H-hgt]);}
-        fin.push(S_(top.concat([[x0+w,H+1],[x0,H+1]]),{fill:true,bl:true,brk:false}));
-        // gotas subindo da poça (salpicos)
-        for(let k=0;k<Math.round(gp*14);k++){const x=x0+w*h01(S.seed,'pg'+pi,k);const y=H-gp*26-2-h01(S.seed,'ph'+pi,k)*10*gp;
-          fin.push(S_(circlePts(x,y,.3+h01(S.seed,'pr'+pi,k)*1.1,8),{fill:true,bl:true}));}
-      });}
+    // grão: pontilhado que se acumula nas bordas da página e em volta da moldura
+    const gg=g01(dg,.05,1);
+    if(gg>0){
+      const rg=RNG(S.seed,'grao');const ng=makeNoise(RNG(S.seed,'grao-n'));
+      const N=Math.round(W*H*1.6); // candidatos fixos (estável ao mexer no slider)
+      const fall=2.5+gg*13, fallF=1.6+gg*4;
+      for(let i=0;i<N;i++){
+        const x=rg()*W,y=rg()*H,t=rg(),sr=rg();
+        const pg=dupla&&x>=pw?1:0;const lx=x-pg*pw;
+        const dEdge=Math.min(lx,pw-lx,y,H-y);
+        const dFrame=Math.abs(Math.min(lx-S.margin,pw-S.margin-lx,y-S.margin,H-S.margin-y));
+        let dens=Math.exp(-dEdge/fall)+Math.exp(-dFrame/fallF)*.3;
+        const nm=clamp(ng(x*.05,y*.05)*.9+.5,0,1);dens*=.15+.85*nm*nm; // manchas/aglomerados
+        if(t>=dens*gg*.85)continue;
+        G_dots.push([x,y,.05+sr*sr*(.12+gg*.2)]);
+      }
+    }
   }
   // rabiscos
   for(let i=0;i<8;i++){const th=rx();const [x0,y0]=edgePoint();const n=40+Math.floor(rx()*80);const sd=rx()*1000;
@@ -726,7 +695,7 @@ function generate(S){
     for(let k=0;k<n;k++){a+=(r2()-.5)*1.6;x+=Math.cos(a)*1.6;y+=Math.sin(a)*1.6;pts.push([x,y]);}
     fin.push(S_(pts,{w:.45}));
   }
-  return {W,H,pw,ph,dupla,shapes:fin};
+  return {W,H,pw,ph,dupla,shapes:fin,dots:G_dots};
 }
 
 /* ---------- SVG ---------- */
@@ -737,7 +706,7 @@ function toSVG(G,S,opts){
   const COL={fg:S.fg,ac:S.ac,bl:S.blood,bg:S.bg};
   const key=sh=>sh.bgf?'bg':sh.bl?'bl':sh.ac?'ac':'fg';
   // mantém a ordem de pintura e junta formas vizinhas com o mesmo estilo
-  const runs=[];
+  const runs=[];let runsDots='';
   G.shapes.forEach(sh=>{if(sh.p.length<2)return;
     const d='M'+sh.p.map(([x,y])=>f2(x)+' '+f2(y)).join('L')+(sh.fill?'Z':'');
     const k=sh.fill?'F'+key(sh):'S'+(key(sh)==='bg'?'fg':key(sh))+'|'+f2(Math.max(.08,sh.w*sw));
@@ -749,6 +718,10 @@ function toSVG(G,S,opts){
     const [c,w]=r.k.slice(1).split('|');
     return `<path d="${r.d.join('')}" fill="none" stroke="${COL[c]}" stroke-width="${w}"/>`;
   }).join('\n');
+  if(G.dots&&G.dots.length){
+    const d=G.dots.map(([x,y,r])=>`M${f2(x-r)} ${f2(y)}a${f2(r)} ${f2(r)} 0 1 0 ${f2(2*r)} 0a${f2(r)} ${f2(r)} 0 1 0 ${f2(-2*r)} 0`).join('');
+    runsDots=`<path id="grao" d="${d}" fill="${S.grain2||S.fg}" fill-opacity=".8"/>`;
+  }
   const bg=(opts.noBg)?'':`<rect width="${f2(G.W)}" height="${f2(G.H)}" fill="${S.bg}"/>`;
   const guides=opts.guides?`<g fill="none" stroke="${S.fg}" stroke-opacity=".18" stroke-width=".3" stroke-dasharray="2 2">${G.dupla?`<line x1="${G.pw}" y1="0" x2="${G.pw}" y2="${G.H}"/>`:''}</g>`:'';
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${f2(G.W)}mm" height="${f2(G.H)}mm" viewBox="0 0 ${f2(G.W)} ${f2(G.H)}">
@@ -756,6 +729,7 @@ function toSVG(G,S,opts){
 <defs><clipPath id="pg"><rect width="${f2(G.W)}" height="${f2(G.H)}"/></clipPath></defs>
 ${bg}
 <g clip-path="url(#pg)">
+${runsDots}
 <g stroke-linecap="round" stroke-linejoin="round">
 ${body}
 </g>
@@ -766,14 +740,14 @@ ${guides}
 
 /* ---------- estado / UI ---------- */
 const PALS={
-  escuro:{bg:'#071A18',fg:'#A4D8A7',ac:'#D9442B',blood:'#B3161B'},
-  claro:{bg:'#E9E2D0',fg:'#071A18',ac:'#D9442B',blood:'#8E0E12'},
-  pb:{bg:'#FFFFFF',fg:'#000000',ac:'#000000',blood:'#000000'},
-  amarelo:{bg:'#F4E21B',fg:'#0A0A0A',ac:'#0A0A0A',blood:'#C4121A'}
+  escuro:{bg:'#071A18',fg:'#A4D8A7',ac:'#D9442B',blood:'#B3161B',grain2:'#A4D8A7'},
+  claro:{bg:'#E9E2D0',fg:'#071A18',ac:'#D9442B',blood:'#8E0E12',grain2:'#071A18'},
+  pb:{bg:'#FFFFFF',fg:'#000000',ac:'#000000',blood:'#000000',grain2:'#000000'},
+  amarelo:{bg:'#F4E21B',fg:'#0A0A0A',ac:'#0A0A0A',blood:'#C4121A',grain2:'#0A0A0A'}
 };
 const DEF={seed:'emunah',chaos:.12,layout:'dupla',size:'210x297',pw:210,ph:297,spine:'separadas',margin:14,
   dens:.6,depth:3,corner:'quadrado',lineCorner:'arco',cs:32,edge:'escrita',medal:true,mr:13,rays:false,
-  weight:.9,bg:'#071A18',fg:'#A4D8A7',ac:'#D9442B',blood:'#B3161B',deg:0,transparent:false,dpi:300,grain:true};
+  weight:.9,bg:'#071A18',fg:'#A4D8A7',ac:'#D9442B',blood:'#B3161B',grain2:'#A4D8A7',deg:0,transparent:false,dpi:300,grain:true};
 const PRESETS={
   ordem:{chaos:0,deg:0,dens:.85,depth:4,corner:'quadrado',lineCorner:'arco',edge:'escrita',medal:true,rays:false},
   liturgia:{chaos:.06,deg:0,dens:1,depth:3,corner:'rosacea',lineCorner:'caixa',edge:'losangos',medal:true,rays:true},
@@ -788,7 +762,7 @@ try{const h=location.hash.slice(1);if(h){const o=JSON.parse(decodeURIComponent(e
 const $=id=>document.getElementById(id);
 const bindings=[
   ['seed','text'],['margin','int'],['dens','pct'],['depth','int'],['corner','sel'],['lineCorner','sel'],['cs','int'],
-  ['edge','sel'],['medal','chk'],['mr','int'],['rays','chk'],['weight','w'],['bg','col'],['fg','col'],['ac','col'],['blood','col'],
+  ['edge','sel'],['medal','chk'],['mr','int'],['rays','chk'],['weight','w'],['bg','col'],['fg','col'],['ac','col'],['blood','col'],['grain2','col'],
   ['transparent','chk'],['spine','sel'],['dpi','int'],['grain','chk']
 ];
 function toUI(){
