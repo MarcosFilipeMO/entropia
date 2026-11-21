@@ -777,12 +777,8 @@ function generate(S){
     fin.push(S_(blob,{fill:true,ac}));
     drops.forEach(([a,b,cc])=>{const d=R*(1.3+a*4);const ang=dir+(b-.5)*1.4;fin.push(S_(circlePts(x+d*Math.cos(ang),y+d*Math.sin(ang),.15+cc*R*.25,8),{fill:true,ac}));});
   }
-  // arranhões
-  for(let i=0;i<16;i++){const th=rx();const [x,y]=edgePoint();const L=20+rx()*180;const a=rx()*TAU;const bend=(rx()-.5)*.25;const w=.25+rx()*.35;
-    if(th>=e*.8)continue;
-    const pts=[];for(let k=0;k<=24;k++){const t=k/24;const aa=a+bend*t;pts.push([x+Math.cos(aa)*L*t,y+Math.sin(aa)*L*t]);}
-    fin.push(S_(pts,{w:w/(S.weight*0.3528),brk:false}));
-  }
+  // (arranhões removidos — os sorteios continuam para não mudar o resto da moldura)
+  for(let i=0;i<16;i++){rx();edgePoint();rx();rx();rx();rx();}
   // (escorridos removidos — os sorteios continuam para não mudar o resto da moldura)
   for(let i=0;i<14;i++){rx();rx();rx();rx();rx();rx();rx();}
   // ---- DEGENERAÇÃO no mundo: gotas de sangue aleatórias + grão nas bordas ----
