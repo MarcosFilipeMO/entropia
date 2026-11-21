@@ -783,12 +783,8 @@ function generate(S){
     const pts=[];for(let k=0;k<=24;k++){const t=k/24;const aa=a+bend*t;pts.push([x+Math.cos(aa)*L*t,y+Math.sin(aa)*L*t]);}
     fin.push(S_(pts,{w:w/(S.weight*0.3528),brk:false}));
   }
-  // escorridos (do traço de cima para baixo)
-  for(let i=0;i<14;i++){const th=rx();const x=S.margin+rx()*(W-2*S.margin);const y=S.margin+rx()*3;const L=4+rx()*rx()*45;const r=.6+rx()*1.2;rx();const ac=false;
-    if(th>=e*.85)continue;
-    const pts=[];for(let k=0;k<=12;k++){const t=k/12;pts.push([x+Math.sin(t*3+i)*.4,y+L*t]);}
-    fin.push(S_(pts,{w:1.4+r,ac}));fin.push(S_(circlePts(x,y+L+r*.4,r,10),{fill:true,ac}));
-  }
+  // (escorridos removidos — os sorteios continuam para não mudar o resto da moldura)
+  for(let i=0;i<14;i++){rx();rx();rx();rx();rx();rx();rx();}
   // ---- DEGENERAÇÃO no mundo: gotas de sangue aleatórias + grão nas bordas ----
   const dg=S.deg||0;
   if(dg>0){
