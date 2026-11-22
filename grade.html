@@ -109,6 +109,9 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
         <button data-preset="carcere">Cárcere</button>
         <button data-preset="ruina">Ruína</button>
         <button data-preset="degenerado">Degenerado</button>
+        <button data-preset="liturgia">Liturgia</button>
+        <button data-preset="sacrario">Sacrário</button>
+        <button data-preset="claustro">Claustro</button>
         <button data-preset="limpo">Limpo</button>
       </div>
     </div>
@@ -156,12 +159,25 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
         <option value="barras">Barras (escada)</option>
         <option value="cruz">Treliça em X</option>
         <option value="losango">Losangos</option>
+        <optgroup label="Litúrgicas">
+        <option value="volutas">Volutas (coração)</option>
+        <option value="quadrifolio">Quadrifólio</option>
+        <option value="arcadas">Arcada gótica</option>
+        <option value="cruzes">Cruz pátea</option>
+        </optgroup>
         <option value="nenhum">Nenhuma</option>
       </select>
       <div class="row">
         <div><label>Espaço: <span id="rungSpV"></span> mm</label><input type="range" id="rungSp" min="2" max="16" value="5.5" step=".5"></div>
         <div><label>Espessura: <span id="rungTV"></span> mm</label><input type="range" id="rungT" min=".3" max="4" value="1.5" step=".1"></div>
       </div>
+      <label>Forma das pontas</label>
+      <select id="tip">
+        <option value="tri">Espinho</option>
+        <option value="lanca">Lança</option>
+        <option value="flor">Flor-de-lis</option>
+        <option value="cruz">Cruz</option>
+      </select>
       <label>Espinhos para dentro</label>
       <select id="spikesIn">
         <option value="grade">Em toda a grade</option>
@@ -601,6 +617,59 @@ function vein(out,x,y,a,len,w,depth,seed,tag){
   }
 }
 
+/* ============================================================
+   LITURGIA — módulos de serralheria sacra para o vão da grade
+   (desenhados numa caixa unitária: u ao longo, v através; v=-1 trilho de fora, v=+1 de dentro)
+   ============================================================ */
+function spiralPts(c,start,turns,shrink,dir){const r0=Math.hypot(start[0]-c[0],start[1]-c[1]),a0=Math.atan2(start[1]-c[1],start[0]-c[0]);const p=[];
+  for(let i=0;i<=64;i++){const t=i/64,r=r0*(1-shrink*t),a=a0+dir*t*turns*TAU;p.push([c[0]+r*Math.cos(a),c[1]+r*Math.sin(a)]);}return p;}
+const LIT_KINDS=['volutas','quadrifolio','arcadas','cruzes'];
+const LIT_ASPECT={volutas:1.35,quadrifolio:1,arcadas:.72,cruzes:1}; // comprimento mínimo do módulo, em larguras da grade
+const LIT={};
+function litModule(kind){
+  if(LIT[kind])return LIT[kind];
+  const S=[],Fl=[];const mir=p=>p.map(([u,v])=>[-u,v]);
+  if(kind==='volutas'){ // coração de volutas: rabo curvo saindo da ponta de baixo, enrolando em espiral no alto
+    const C=[-.45,-.22],a0=150*Math.PI/180,r0=.56;const sp=[];
+    for(let i=0;i<=70;i++){const t=i/70,r=r0*(1-.82*t),a=a0+t*1.55*TAU;sp.push([C[0]+r*Math.cos(a),C[1]+r*Math.sin(a)]);}
+    const B=[0,.95],Q=[-.62,.95],S0=sp[0],tail=[];
+    for(let i=0;i<=20;i++){const t=i/20,u=1-t;tail.push([u*u*B[0]+2*u*t*Q[0]+t*t*S0[0],u*u*B[1]+2*u*t*Q[1]+t*t*S0[1]]);}
+    const L=tail.concat(sp.slice(1));S.push(L,mir(L));
+    S.push([[0,.95],[0,1.08]],[[0,-.62],[0,-1.08]]);
+    Fl.push([[-.14,.86],[.14,.86],[.14,1.02],[-.14,1.02]],[[0,-.62],[.1,-.45],[0,-.28],[-.1,-.45]]);
+  }else if(kind==='quadrifolio'){ // quadrifólio dentro de um anel
+    const q=[];for(let k=0;k<4;k++){const f=k*Math.PI/2,c=[Math.cos(f)*.42,Math.sin(f)*.42];
+      for(let i=0;i<=24;i++){const a=f-Math.PI*.68+i/24*Math.PI*1.36;q.push([c[0]+Math.cos(a)*.42,c[1]+Math.sin(a)*.42]);}}
+    q.push(q[0]);S.push(q,circlePts(0,0,1,48));
+    Fl.push(circlePts(0,0,.13,14));
+    for(let k=0;k<4;k++){const f=Math.PI/4+k*Math.PI/2;S.push([[Math.cos(f)*.72,Math.sin(f)*.72],[Math.cos(f)*.98,Math.sin(f)*.98]]);}
+  }else if(kind==='arcadas'){ // arco gótico (ogiva) com trifólio e remate
+    const A=[];for(let i=0;i<=30;i++){const a=Math.PI+i/30*Math.PI/3;A.push([1+2*Math.cos(a),1+2*Math.sin(a)]);}
+    S.push(A,mir(A));
+    for(let k=-1;k<=1;k++){const c=[k*.24,.3+(k?0:-.22)];S.push(circlePts(c[0],c[1],.2,18));}
+    Fl.push(circlePts(0,-.86,.11,12));
+  }else{ // cruz pátea dentro de um anel
+    S.push(circlePts(0,0,.97,48));
+    for(let k=0;k<4;k++){const A=[Math.cos(k*Math.PI/2),Math.sin(k*Math.PI/2)],Q=[-A[1],A[0]];
+      Fl.push([add(add([0,0],A,.1),Q,-.11),add(add([0,0],A,.8),Q,-.34),add(add([0,0],A,.8),Q,.34),add(add([0,0],A,.1),Q,.11)]);}
+    Fl.push([[-.12,-.12],[.12,-.12],[.12,.12],[-.12,.12]]);
+  }
+  // encaixa na caixa unitária
+  let mx=0,my=0;[...S,...Fl].forEach(p=>p.forEach(([u,v])=>{mx=Math.max(mx,Math.abs(u));my=Math.max(my,Math.abs(v));}));
+  const fit=p=>p.map(([u,v])=>[u/mx,v/my]);
+  return LIT[kind]={S:S.map(fit),F:Fl.map(fit)};
+}
+// pontas: triângulo, lança, flor-de-lis, cruz — em coordenadas (x ao longo do trilho, y para fora da grade)
+function tipPolys(kind,L,B){const b=B/2;
+  if(kind==='lanca')return [[[-b*.36,0],[-b*.36,L*.42],[-b*1.2,L*.56],[0,L],[b*1.2,L*.56],[b*.36,L*.42],[b*.36,0]]];
+  if(kind==='flor'){const P=[[[-b*.3,0],[-b*.3,L*.38],[-b*.8,L*.6],[-b*.36,L*.84],[0,L],[b*.36,L*.84],[b*.8,L*.6],[b*.3,L*.38],[b*.3,0]],
+      [[-b,L*.33],[b,L*.33],[b,L*.42],[-b,L*.42]]];
+    const side=[[-b*.25,L*.44],[-b*1.1,L*.52],[-b*1.9,L*.66],[-b*2.05,L*.5],[-b*1.7,L*.32],[-b*1.5,L*.44],[-b*1.05,L*.46],[-b*.25,L*.5]];
+    P.push(side,side.map(([x,y])=>[-x,y]));return P;}
+  if(kind==='cruz')return [[[-b*.28,0],[-b*.28,L*.6],[-b*1.1,L*.6],[-b*1.1,L*.74],[-b*.28,L*.74],[-b*.28,L],[b*.28,L],[b*.28,L*.74],[b*1.1,L*.74],[b*1.1,L*.6],[b*.28,L*.6],[b*.28,0]]];
+  return [[[-b,0],[0,L],[b,0]]];
+}
+
 /* ---------- geometria da moldura (uma página, segue as margens) ---------- */
 function pageGeom(P,ox){
   const m=P.margin;const x0=ox+m,x1=ox+P.pw-m,y0=m,yb=P.ph-m;
@@ -682,30 +751,37 @@ function buildFrame(g,P,out,r,c){
   const hw=w/2-sw*.35;
   if(P.rung!=='nenhum'){
     rectSides(g,w/2,full?null:yLad).forEach((sd,si)=>freeRuns(sd,w/2,meds,P.rungT*.5+.5).forEach(([a,b],ri)=>{
-      const len=b-a;const n=Math.max(1,Math.round(len/P.rungSp));const st=len/n;
+      const lit=LIT_KINDS.includes(P.rung);
+      const len=b-a;const n=Math.max(1,Math.round(len/(lit?Math.max(P.rungSp,w*LIT_ASPECT[P.rung]):P.rungSp)));const st=len/n;
+      // módulos litúrgicos: travessas finas separando cada módulo
+      if(lit)for(let i=0;i<=n;i++){const p=at(sd,a+i*st);F([add(p,sd.n,-hw),add(p,sd.n,hw)],{w:Math.max(.25,P.rungT*.55),anch:[[...add(p,sd.n,-w/2),'o'],[...add(p,sd.n,w/2),'i']]});}
       for(let i=0;i<n;i++){const k=r(),ta=r()-.5;if(k<c*c*.5)continue;
         const p=at(sd,a+(i+.5)*st),ang=ta*c*.9,t=rv(sd.d,ang),nn=rv(sd.n,ang);
         const anch=[[...add(p,sd.n,-w/2),'o'],[...add(p,sd.n,w/2),'i']];
-        if(P.rung==='barras'){const q=P.rungT/2;
+        if(lit){const M=litModule(P.rung),su=st/2*.86,sv=hw*.88,lw=Math.max(.25,P.rungT*.55);
+          const T=([u,v])=>add(add(p,t,u*su),nn,v*sv);
+          M.S.forEach(q=>F(q.map(T),{w:lw,anch}));M.F.forEach(q=>F(q.map(T),{fill:true,anch}));}
+        else if(P.rung==='barras'){const q=P.rungT/2;
           F([add(add(p,nn,-hw),t,-q),add(add(p,nn,-hw),t,q),add(add(p,nn,hw),t,q),add(add(p,nn,hw),t,-q)],{fill:true,anch});}
         else if(P.rung==='losango'){const q=Math.min(st*.42,w*.45);
           F([add(p,nn,-hw),add(p,t,q),add(p,nn,hw),add(p,t,-q)],{fill:true,anch});}
         else{const p0=at(sd,a+i*st),p1=at(sd,a+(i+1)*st);
           F([add(p0,nn,-hw),add(p1,nn,hw)],{w:P.rungT*.6,anch});F([add(p0,nn,hw),add(p1,nn,-hw)],{w:P.rungT*.6,anch});}
       }}));
-    // cantos da grade (sem medalhão): rebite ou X
+    // cantos da grade (sem medalhão): vazio nas barras; X, losango ou quadrifólio nos outros
     const ck=[[x0+w/2,y0+w/2],[x1-w/2,y0+w/2]];if(full)ck.push([x1-w/2,yb-w/2],[x0+w/2,yb-w/2]);
     ck.forEach(p=>{if(blocked(p))return;
       if(P.rung==='cruz'){F([[p[0]-hw,p[1]-hw],[p[0]+hw,p[1]+hw]],{w:P.rungT*.6});F([[p[0]-hw,p[1]+hw],[p[0]+hw,p[1]-hw]],{w:P.rungT*.6});}
       else if(P.rung==='losango')F([[p[0],p[1]-hw],[p[0]+hw,p[1]],[p[0],p[1]+hw],[p[0]-hw,p[1]]],{fill:true});
-      else F(circlePts(p[0],p[1],Math.min(hw*.7,P.rungT*.9+.3),20),{fill:true});});
+      else if(LIT_KINDS.includes(P.rung)){const M=litModule('quadrifolio'),T=([u,v])=>[p[0]+u*hw*.85,p[1]+v*hw*.85],lw=Math.max(.25,P.rungT*.55);
+        M.S.forEach(q=>F(q.map(T),{w:lw}));M.F.forEach(q=>F(q.map(T),{fill:true}));}});
   }
   // ---- espinhos: também lado a lado ----
   const spikeRun=(sides,dir,rail)=>sides.forEach(sd=>freeRuns(sd,P.spikeB*.5+.6,meds,P.spikeB*.5+.3).forEach(([a,b])=>{
     const len=b-a;if(len<P.spikeB)return;const n=Math.max(1,Math.round(len/P.spikeSp));const st=len/n;const hb=P.spikeB/2;
     for(let i=0;i<n;i++){const k=r(),lj=r(),ln=r();if(k<c*c*.45)continue;const p=at(sd,a+(i+.5)*st);
-      const L=P.spikeL*(1+(lj-.5)*c*1.4);
-      F([add(p,sd.d,-hb),add(add(p,sd.n,dir*L),sd.d,(ln-.5)*c*P.spikeB*2.5),add(p,sd.d,hb)],{fill:true,anch:[[...add(p,sd.n,dir*-sw*.45),rail]]});}}));
+      const L=P.spikeL*(1+(lj-.5)*c*1.4),lean=(ln-.5)*c*P.spikeB*2.5;const anch=[[...add(p,sd.n,dir*-sw*.45),rail]];
+      tipPolys(P.tip,L,P.spikeB).forEach(q=>F(q.map(([x,y])=>add(add(p,sd.d,x+lean*y/L),sd.n,dir*y)),{fill:true,anch}));}}));
   if(P.spikesIn!=='nenhum'){let s=rectSides(g,w+sw*.45,full?null:yLad);if(P.spikesIn==='arco')s=s.filter(q=>q.id==='t');spikeRun(s,1,'i');}
   if(P.spikesOut!=='nenhum'){const to=-sw*.45;let s=P.spikesOut==='grade'&&!full?rectSides(g,to,yLad):rectSides(g,to,null);
     if(P.spikesOut==='arco')s=s.filter(q=>q.id==='t');spikeRun(s,-1,'o');
@@ -713,7 +789,8 @@ function buildFrame(g,P,out,r,c){
     const all=P.spikesOut==='tudo'||(P.spikesOut==='grade'&&full);
     const cc=[[x0+to,y0+to,-1,-1],[x1-to,y0+to,1,-1]];if(all)cc.push([x1-to,yb-to,1,1],[x0+to,yb-to,-1,1]);
     cc.forEach(([x,y,sx,sy])=>{const k=r(),lj=r();if(blocked([x,y])||k<c*c*.45)return;const D=[sx/Math.SQRT2,sy/Math.SQRT2],Q=[-D[1],D[0]];const hb=P.spikeB/2;
-      F([add([x,y],Q,-hb),add([x,y],D,P.spikeL*1.25*(1+(lj-.5)*c*1.4)),add([x,y],Q,hb)],{fill:true,anch:[[x-sx*sw*.45,y-sy*sw*.45,'o']]});});
+      const L=P.spikeL*1.25*(1+(lj-.5)*c*1.4);
+      tipPolys(P.tip,L,P.spikeB).forEach(q=>F(q.map(([u,v])=>add(add([x,y],Q,u),D,v)),{fill:true,anch:[[x-sx*sw*.45,y-sy*sw*.45,'o']]}));});
   }
   // ---- degeneração ----
   degenerate(g,P,meds,F,orn);
@@ -1115,21 +1192,27 @@ const PALS={
   claro:{bg:'#E9E2D0',fg:'#071A18',gl:'#071A18',gr:'#3a2a1c',ac:'#D9442B',bl:'#8E0E12',vi:'#2F4A2A',ru:'#8B4513'},
   amarelo:{bg:'#F4E21B',fg:'#0A0A0A',gl:'#0A0A0A',gr:'#C4121A',ac:'#0A0A0A',bl:'#C4121A',vi:'#0A0A0A',ru:'#7A3B10'}
 };
-const DEF={seed:'verbum',chaos:.12,deg:0,corner:'nenhum',cs:24,medal:false,mr:11,depth:3,ornPt:1.6,ac:'#0A0A0A',bl:'#000000',vi:'#0A0A0A',ru:'#0A0A0A',vines:0,glass:.5,grunge:.55,layout:'dupla',size:'210x297',pw:210,ph:297,margin:12,
+const DEF={seed:'verbum',chaos:.12,deg:0,corner:'nenhum',cs:24,medal:false,mr:11,depth:3,ornPt:1.6,ac:'#0A0A0A',bl:'#000000',vi:'#0A0A0A',ru:'#0A0A0A',vines:0,tip:'tri',glass:.5,grunge:.55,layout:'dupla',size:'210x297',pw:210,ph:297,margin:12,
   railGap:6,ladderDown:1,rung:'barras',rungSp:5.5,rungT:1.5,spikesIn:'grade',spikesOut:'nenhum',spikeL:4,spikeB:2,spikeSp:9,
   impacts:6,bottom:.7,shards:true,grungeIn:false,
   railPt:6,crackPt:.9,bg:'#FFFFFF',fg:'#0A0A0A',gl:'#0A0A0A',gr:'#0A0A0A',transparent:false,dpi:300,grain:true};
 const PRESETS={
-  pagina:{deg:0,corner:'nenhum',medal:false,chaos:.12,glass:.5,grunge:.55,margin:12,railGap:6,ladderDown:1,rung:'barras',rungSp:5.5,rungT:1.5,
+  pagina:{tip:'tri',deg:0,corner:'nenhum',medal:false,chaos:.12,glass:.5,grunge:.55,margin:12,railGap:6,ladderDown:1,rung:'barras',rungSp:5.5,rungT:1.5,
     spikesIn:'grade',spikesOut:'nenhum',spikeL:4,spikeB:2,spikeSp:9,impacts:6,bottom:.7,railPt:6},
-  catedral:{deg:0,corner:'rosacea',cs:30,medal:true,mr:12,depth:3,chaos:0,glass:.4,grunge:.35,margin:14,railGap:8,ladderDown:1,rung:'losango',rungSp:7,
+  catedral:{tip:'tri',deg:0,corner:'rosacea',cs:30,medal:true,mr:12,depth:3,chaos:0,glass:.4,grunge:.35,margin:14,railGap:8,ladderDown:1,rung:'losango',rungSp:7,
     spikesIn:'nenhum',spikesOut:'tudo',spikeL:5,spikeB:2.4,spikeSp:8,impacts:4,bottom:.4,railPt:5},
-  carcere:{deg:.2,corner:'espinhos',cs:26,medal:false,depth:3,chaos:.4,glass:.85,grunge:.85,margin:12,railGap:9,ladderDown:1,rung:'cruz',rungSp:6,rungT:1.4,
+  carcere:{tip:'tri',deg:.2,corner:'espinhos',cs:26,medal:false,depth:3,chaos:.4,glass:.85,grunge:.85,margin:12,railGap:9,ladderDown:1,rung:'cruz',rungSp:6,rungT:1.4,
     spikesIn:'grade',spikesOut:'tudo',spikeL:5,spikeB:2,spikeSp:7,impacts:8,bottom:1,railPt:7},
-  ruina:{deg:0,corner:'olho',cs:28,medal:true,mr:11,chaos:.85,glass:.9,grunge:.8,margin:12,railGap:6,ladderDown:1,rung:'barras',rungSp:5.5,rungT:1.5,
+  ruina:{tip:'tri',deg:0,corner:'olho',cs:28,medal:true,mr:11,chaos:.85,glass:.9,grunge:.8,margin:12,railGap:6,ladderDown:1,rung:'barras',rungSp:5.5,rungT:1.5,
     spikesIn:'grade',spikesOut:'arco',spikeL:4.5,spikeB:2,spikeSp:8,impacts:8,bottom:.9,railPt:6},
-  degenerado:{chaos:.3,deg:.8,glass:.55,grunge:.6,corner:'espinhos',cs:28,medal:true,mr:12,depth:3,margin:12,railGap:6,ladderDown:1,
+  degenerado:{tip:'tri',chaos:.3,deg:.8,glass:.55,grunge:.6,corner:'espinhos',cs:28,medal:true,mr:12,depth:3,margin:12,railGap:6,ladderDown:1,
     rung:'barras',rungSp:5.5,rungT:1.5,spikesIn:'grade',spikesOut:'nenhum',spikeL:4,spikeB:2,spikeSp:9,impacts:6,bottom:.8,railPt:6},
+  liturgia:{tip:'flor',rung:'volutas',chaos:.04,deg:0,vines:0,glass:.3,grunge:.35,margin:13,railGap:10,ladderDown:1,rungSp:13,rungT:.9,
+    spikesIn:'nenhum',spikesOut:'tudo',spikeL:6,spikeB:2.2,spikeSp:13,corner:'rosacea',cs:30,medal:true,mr:12,depth:3,railPt:4.5,impacts:4,bottom:.6},
+  sacrario:{tip:'lanca',rung:'arcadas',chaos:.04,deg:0,vines:0,glass:.35,grunge:.4,margin:13,railGap:10,ladderDown:1,rungSp:7,rungT:.9,
+    spikesIn:'grade',spikesOut:'tudo',spikeL:5,spikeB:2.2,spikeSp:7.5,corner:'selo',cs:30,medal:true,mr:12,depth:3,railPt:4.5,impacts:4,bottom:.6},
+  claustro:{tip:'cruz',rung:'quadrifolio',chaos:.04,deg:0,vines:0,glass:.3,grunge:.35,margin:13,railGap:9,ladderDown:1,rungSp:9,rungT:.9,
+    spikesIn:'nenhum',spikesOut:'tudo',spikeL:6,spikeB:2.4,spikeSp:9.5,corner:'quadrado',cs:28,medal:true,mr:11,depth:3,railPt:4.5,impacts:4,bottom:.6},
   limpo:{glass:0,grunge:0}
 };
 const WORDS=['verbum','emunah','lacrimah','eden','spiritum','apogeu','silencio','zeit','inclemente','revelado','adjuracao','codice','kamia','vozes','reliquia','vazio','exorcismo','trinitum','sintonia','desapego'];
@@ -1141,7 +1224,7 @@ const $=id=>document.getElementById(id);
 const bindings=[
   ['seed','text'],['margin','num',0],['corner','sel'],['cs','num',0],['medal','chk'],['mr','num',0],['depth','num',0],['ornPt','num',1],['vines','pct',2],
   ['railGap','num',0],['ladderDown','pct',2],['rung','sel'],['rungSp','num',1],['rungT','num',1],['spikesIn','sel'],['spikesOut','sel'],
-  ['spikeL','num',1],['spikeB','num',1],['spikeSp','num',1],
+  ['spikeL','num',1],['spikeB','num',1],['spikeSp','num',1],['tip','sel'],
   ['impacts','num',0],['bottom','pct',2],['shards','chk'],['grungeIn','chk'],['railPt','num',1],['crackPt','num',1],
   ['bg','col'],['fg','col'],['gl','col'],['gr','col'],['ac','col'],['bl','col'],['vi','col'],['ru','col'],['transparent','chk'],['dpi','num',0],['grain','chk']
 ];
