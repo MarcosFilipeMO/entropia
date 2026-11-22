@@ -219,7 +219,7 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
       <h2>Cipós</h2>
       <label>Cipós na grade: <span id="vinesV"></span></label>
       <input type="range" id="vines" min="0" max="100" value="0">
-      <p class="note">0 = sem cipós. Na ordem, crescem em trança regular com folhas em par; com a entropia ficam selvagens, soltam da grade, ganham gavinhas e galhos pendurados.</p>
+      <p class="note">0 = sem cipós. Na ordem, crescem em trança regular com folhas em par; com a entropia ficam selvagens, soltam da grade, trocam as folhas por espinhos e ganham gavinhas e galhos pendurados. Com a degeneração, secam: ficam quebradiços e as folhas murcham e caem.</p>
     </div>
 
     <div class="grp">
@@ -254,7 +254,7 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
         <div><label>Destaque</label><input type="color" id="ac"></div>
         <div><label>Sangue</label><input type="color" id="bl"></div>
         <div><label>Cipó</label><input type="color" id="vi"></div>
-        <div></div>
+        <div><label>Ferrugem</label><input type="color" id="ru"></div>
       </div>
       <label class="chk"><input type="checkbox" id="transparent"> Exportar sem fundo</label>
     </div>
@@ -735,23 +735,42 @@ function buildFrame(g,P,out,r,c){
    Na ordem: trança regular de dois ramos, folhas em par a intervalos iguais.
    No caos: um ramo só, solto da grade, folhas tortas, gavinhas e galhos pendurados.
    ============================================================ */
-function leafPts(base,axis,L){const q=[-axis[1],axis[0]];const a=[],b=[];
-  for(let i=0;i<=10;i++){const u=i/10,hw=L*.27*Math.pow(Math.sin(Math.PI*u),.85)*(1-u*.25);const p=add(base,axis,u*L);a.push(add(p,q,hw));b.push(add(p,q,-hw));}
+// wf: largura (folha seca murcha), curl: quanto a folha enrola ao longo do comprimento
+function leafPts(base,axis,L,wf,curl){wf=wf==null?1:wf;curl=curl||0;const a=[],b=[];let p=base;
+  for(let i=0;i<=10;i++){const u=i/10,ax=rv(axis,curl*u*u),q=[-ax[1],ax[0]];if(i>0)p=add(p,ax,L/10);
+    const hw=L*.27*wf*Math.pow(Math.sin(Math.PI*u),.85)*(1-u*.25);a.push(add(p,q,hw));b.push(add(p,q,-hw));}
   return a.concat(b.reverse());}
 function buildVines(g,P,F,blocked,c,pi){
   const amt=P.vines||0;if(amt<=0)return;
   const {w,full,yLad}=g;const W=walker(contour(g,w/2,full,yLad));const Lc=W.L;
-  const sw=.6;
-  // contorno na cor do fundo: separa o cipó do ferro, como numa gravura
-  const VF=(p,o)=>{o=Object.assign({c:'vi',nobrk:true},o);
-    if(o.fill)F(p.concat([p[0]]),{c:'bg',w:.7,nobrk:true});else F(p,{c:'bg',w:o.w+.75,nobrk:true});F(p,o);};
+  // seca com a degeneração: caule mais fino e quebradiço, folhas murchas que caem
+  const dry=g01(P.deg||0,.05,1);
+  const sw=.6*(1-dry*.4);
+  const VF=(p,o)=>F(p,Object.assign({c:'vi',nobrk:true},o));
+  // traço quebradiço: falhas curtas com lascas nas pontas (limiar fixo por ponto)
+  const VB=(pts,o,key)=>{if(dry<=0){VF(pts,o);return;}let cur=[],skip=0;
+    const snap=(q,i,dir)=>{if(q.length<2)return;const e=q[dir>0?q.length-1:0],f=q[dir>0?q.length-2:1];
+      const ax=rv([(e[0]-f[0]),(e[1]-f[1])].map(v=>v/(Math.hypot(e[0]-f[0],e[1]-f[1])||1)),(h01(P.seed,'lasca'+key,i)-.5)*1.4);
+      VF([e,add(e,ax,.5+dry*.9)],{w:o.w*.45});};
+    for(let i=0;i<pts.length;i++){
+      if(skip>0){skip--;continue;}
+      if(i>2&&h01(P.seed,'seco'+key,i)<dry*.075){if(cur.length>1){VF(cur,o);snap(cur,i,1);}cur=[];skip=1+Math.floor(h01(P.seed,'vao'+key,i)*3*dry);continue;}
+      if(!cur.length&&i>0)cur.push(pts[i]),snap([pts[i],pts[Math.min(pts.length-1,i+1)]],i+.5,-1);else cur.push(pts[i]);}
+    if(cur.length>1)VF(cur,o);};
   const nz=makeNoise(RNG(P.seed,'cipoN'+pi));
   const posAt=s=>full?((s%Lc)+Lc)%Lc:clamp(s,0,Lc);
   // ramo de folha + gavinha + galho pendurado, a partir de um ponto do caule
-  const leaf=(p,axis,L)=>{if(!blocked(p))VF(leafPts(p,axis,L),{fill:true});};
+  // folha ou espinho: cada posição tem um limiar fixo; quanto mais caos, mais folhas viram espinhos
+  const leaf=(p,axis,L,key)=>{if(blocked(p))return;
+    if(h01(P.seed,'cipoEsp'+pi,key)<c*1.1){const q=[-axis[1],axis[0]],b=L*.17,h=L*.62,bend=(h01(P.seed,'cipoCurva'+pi,key)-.5)*L*.35;
+      VF([add(p,q,-b),add(add(p,axis,h*.55),q,bend*.4-b*.25),add(add(p,axis,h),q,bend),add(add(p,axis,h*.5),q,bend*.3+b*.3),add(p,q,b)],{fill:true});}
+    else if(dry>0&&h01(P.seed,'cai'+pi,key)<dry*.6){ // folha seca caiu: às vezes fica um pedaço murcho mais abaixo
+      if(dry>.25&&h01(P.seed,'caiu'+pi,key)<.55){const fx=p[0]+(h01(P.seed,'cx'+pi,key)-.5)*8,fy=p[1]+4+h01(P.seed,'cy'+pi,key)*22*dry;
+        if(!blocked([fx,fy]))VF(leafPts([fx,fy],rv([1,0],h01(P.seed,'ca'+pi,key)*TAU),L*.5,.35,(h01(P.seed,'cc'+pi,key)-.5)*3),{fill:true});}}
+    else VF(leafPts(p,axis,L,1-dry*.7,(h01(P.seed,'enrola'+pi,key)<.5?-1:1)*dry*1.5),{fill:true});};
   const tendril=(p,dir,R,turns,sgn)=>{const cx=p[0]+dir[0]*R,cy=p[1]+dir[1]*R,a0=Math.atan2(-dir[1],-dir[0]);const pts=[];
     for(let i=0;i<=48;i++){const u=i/48,a=a0+sgn*u*turns*TAU,r=R*(1-u*.85);pts.push([cx+Math.cos(a)*r,cy+Math.sin(a)*r]);}
-    VF(pts,{w:sw*.55});};
+    VB(pts.slice(0,Math.max(4,Math.round(pts.length*(1-dry*h01(P.seed,'gav'+pi,cx*7+cy)*.7)))),{w:sw*.55},'g'+pi+'_'+Math.round(cx*10));};
   for(let k=0;k<7;k++){
     const r=RNG(P.seed,'cipo'+pi+'_'+k);
     const th=r(),s0=r()*Lc,len=Lc*(.18+r()*.4)*(full?1:.8),ph=r()*TAU,lam=w*(2.3+r()*.6),two=r(),rot=r()*100;
@@ -766,7 +785,7 @@ function buildVines(g,P,F,blocked,c,pi){
       for(let s=s0;s<=s0+len;s+=.7){const q=W.at(posAt(s));const {o}=off(s);const p=add(q.p,q.n,o);
         if(blocked(p)||(!full&&(s<0||s>Lc))){if(cur.length>1)parts.push(cur);cur=[];}else cur.push(p);}
       if(cur.length>1)parts.push(cur);
-      parts.forEach(pp=>VF(pp,{w:sw*(sN?.8:1)}));
+      parts.forEach((pp,pj)=>VB(pp,{w:sw*(sN?.8:1)},'c'+pi+'_'+k+'_'+sN+'_'+pj));
       if(sN>0)continue;
       // folhas e gavinhas nas cristas da onda
       const step=lam/2;let m=0;
@@ -775,26 +794,54 @@ function buildVines(g,P,F,blocked,c,pi){
         const q=W.at(posAt(s));const {o,th:t2}=off(s);const p=add(q.p,q.n,o);const side=Math.sin(t2)>=0?1:-1;
         const L=w*1.05*(1+(kS-.5)*c*1.3);
         if(kL>=c*.35){ // folha (na ordem: sempre, em par simétrico)
-          const ax=rv([q.n[0]*side,q.n[1]*side],(m%2?.55:-.55)+(kA-.5)*c*2);leaf(p,ax,L);
-          if(c<.35&&strands===2){const ax2=rv([q.n[0]*side,q.n[1]*side],(m%2?-.55:.55)+(kA2-.5)*c*2);leaf(p,ax2,L*.8);}}
+          const ax=rv([q.n[0]*side,q.n[1]*side],(m%2?.55:-.55)+(kA-.5)*c*2);leaf(p,ax,L,k*1e4+m*10);
+          if(c<.35&&strands===2){const ax2=rv([q.n[0]*side,q.n[1]*side],(m%2?-.55:.55)+(kA2-.5)*c*2);leaf(p,ax2,L*.8,k*1e4+m*10+1);}}
         if(kT<.08+c*.45){const dir=rv([q.n[0]*side,q.n[1]*side],(kA2-.5)*1.4);tendril(p,dir,w*(.3+kS*.25)*(1+c*.6),1.3+c*1.2,kG<.5?1:-1);}
         // galhos pendurados (só no caos)
         if(kG<c*c*.55){let x=p[0],y=p[1];let a=Math.atan2(q.n[1]*side,q.n[0]*side)+(kG2-.5)*1.2;const br=[[x,y]];const n=Math.round(8+kG3*26*c);
           for(let i=0;i<n;i++){a+=(nz(i*.3+s,rot+m)*.9)+(Math.PI/2-a)*.04;x+=Math.cos(a)*1.1;y+=Math.sin(a)*1.1;br.push([x,y]);
-            if(i%6===5&&!blocked([x,y]))leaf([x,y],rv([Math.cos(a),Math.sin(a)],i%12===5?.7:-.7),L*.7);}
-          VF(br,{w:sw*.7});}
+            if(i%6===5&&!blocked([x,y]))leaf([x,y],rv([Math.cos(a),Math.sin(a)],i%12===5?.7:-.7),L*.7,k*1e4+m*10+2+i);}
+          VB(br,{w:sw*.7},'b'+pi+'_'+k+'_'+m);}
       }
     }
   }
 }
 
 /* ============================================================
-   DEGENERAÇÃO — arame farpado, suturas, veias, dentes, pústulas, olhos, sangue
+   DEGENERAÇÃO — ferrugem, arame farpado, suturas, veias, dentes, pústulas, sangue
    cada elemento tem um limiar fixo (estável ao mexer no slider)
    ============================================================ */
 function degenerate(g,P,meds,F,orn){
   const dg=P.deg||0;if(dg<=0)return;const sd=P.degSeed;const {x0,x1,y0,yb,w,sw,full,yLad}=g;
   const outer=rectSides(g,0,null);
+  // 0. ferrugem: manchas, pontilhado, furos, lascas e escorridos — presos ao trilho
+  const gr2=g01(dg,.1,1);
+  if(gr2>0){
+    const blob=(c0,R,key,k)=>{const f1=h01(sd,'rf1'+key,k)*TAU,f2=h01(sd,'rf2'+key,k)*TAU,f3=h01(sd,'rf3'+key,k)*TAU;const pts=[];
+      for(let i=0;i<=28;i++){const a=i/28*TAU,rr=R*(1+.32*Math.sin(3*a+f1)+.2*Math.sin(5*a+f2)+.12*Math.sin(9*a+f3));pts.push([c0[0]+Math.cos(a)*rr,c0[1]+Math.sin(a)*rr]);}return pts;};
+    const railsR=[...outer.map(S=>[S,'o',0]),...rectSides(g,w,full?null:yLad).map(S=>[S,'i',0])];
+    railsR.forEach(([S,rail],si)=>freeRuns(S,.5,meds,.6).forEach(([a,b],ri)=>{const key=rail+S.id+ri;
+      for(let k=0,t=a+2;t<b;k++,t+=4.6){const p=at(S,t);const anch=[[...p,rail]];
+        // mancha + pontilhado
+        if(h01(sd,'rust'+key,k)<gr2*.75){const R=(.5+h01(sd,'rr'+key,k)*1.6)*(.55+gr2*.9)*Math.max(.6,sw/2);
+          const c0=add(add(p,S.n,(h01(sd,'rn'+key,k)-.5)*sw*1.4),S.d,(h01(sd,'rd'+key,k)-.5)*3);
+          F(blob(c0,R,key,k),{fill:true,c:'ru',anch});
+          const nd=2+Math.floor(h01(sd,'rpn'+key,k)*6*gr2);
+          for(let j=0;j<nd;j++){const an=h01(sd,'rpa'+key,k*9+j)*TAU,d=R*(1.1+h01(sd,'rpd'+key,k*9+j)*1.6),q=[c0[0]+Math.cos(an)*d,c0[1]+Math.sin(an)*d];
+            F(circlePts(q[0],q[1],.12+h01(sd,'rps'+key,k*9+j)*.35,8),{fill:true,c:'ru',anch});}}
+        // furos
+        if(dg>.3&&h01(sd,'furo'+key,k)<(dg-.3)*1.1){const q=add(add(p,S.n,(h01(sd,'fn'+key,k)-.5)*sw*.6),S.d,(h01(sd,'fd'+key,k)-.5)*3);
+          F(circlePts(q[0],q[1],sw*(.12+h01(sd,'fr'+key,k)*.18),10),{fill:true,c:'bg',anch});}
+        // lascas mordendo a borda do ferro
+        if(dg>.5&&h01(sd,'lasc'+key,k)<(dg-.5)*1.2){const sg=h01(sd,'ls'+key,k)<.5?-1:1,e=add(p,S.n,sg*sw*.55),bw=.5+h01(sd,'lw'+key,k)*1.2;
+          F([add(e,S.d,-bw),add(add(e,S.n,-sg*sw*(.35+h01(sd,'lp'+key,k)*.35)),S.d,(h01(sd,'lx'+key,k)-.5)*bw),add(e,S.d,bw),add(add(e,S.d,bw),S.n,sg*.6),add(add(e,S.d,-bw),S.n,sg*.6)],{fill:true,c:'bg',anch});}
+        // escorrido de ferrugem (escorre para baixo, saindo da borda de baixo do trilho)
+        if(h01(sd,'esc'+key,k)<gr2*.32){const y0e=p[1]+sw*.5,x=p[0]+(h01(sd,'ex2'+key,k)-.5)*2,len=(2+h01(sd,'el'+key,k)*20)*(.4+gr2),wd=.3+h01(sd,'ew'+key,k)*.8*(.6+gr2);
+          const Lp=[],Rp=[];for(let q=0;q<=16;q++){const u=q/16,ww=wd*(1-u*.8)*(u>.92?.5:1)+.05,xx=x+Math.sin(u*5+k)*.35;Lp.push([xx-ww/2,y0e+u*len]);Rp.push([xx+ww/2,y0e+u*len]);}
+          const tip=[x+Math.sin(5+k)*.35,y0e+len];
+          F(Lp.concat(circlePts(tip[0],tip[1]+wd*.25,wd*.45,8).slice(4,13)).concat(Rp.reverse()),{fill:true,c:'ru',anch});}
+      }}));
+  }
   // 1. arame farpado no trilho de fora
   outer.forEach(S=>freeRuns(S,1,meds,.5).forEach(([a,b],ri)=>{const key=S.id+ri;
     for(let k=0,t=b-2.5;t>a;k++,t-=4.2){if(h01(sd,'esp'+key,k)>=(dg-.08)*1.5)continue;
@@ -1028,7 +1075,7 @@ const f2=n=>(Math.round(n*100)/100).toString();
 const pathD=p=>'M'+p.map(([x,y])=>f2(x)+' '+f2(y)).join('L');
 function toSVG(G,S,opts){
   opts=opts||{};
-  const COL={fg:S.fg,gl:S.gl,gr:S.gr,bg:S.bg,ac:S.ac,bl:S.bl,vi:S.vi};
+  const COL={fg:S.fg,gl:S.gl,gr:S.gr,bg:S.bg,ac:S.ac,bl:S.bl,vi:S.vi,ru:S.ru};
   const layer=L=>{const runs=[];
     G.shapes.forEach(s=>{if(s.L!==L||s.p.length<2)return;
       const d=pathD(s.p)+(s.fill?'Z':'');const k=s.fill?'F'+s.c:'S'+s.c+'|'+f2(Math.max(.06,s.w));
@@ -1063,12 +1110,12 @@ ${guides}
 
 /* ---------- estado / UI ---------- */
 const PALS={
-  ficha:{bg:'#FFFFFF',fg:'#0A0A0A',gl:'#0A0A0A',gr:'#0A0A0A',ac:'#0A0A0A',bl:'#000000',vi:'#0A0A0A'},
-  escuro:{bg:'#071A18',fg:'#A4D8A7',gl:'#A4D8A7',gr:'#A4D8A7',ac:'#D9442B',bl:'#B3161B',vi:'#6FB06A'},
-  claro:{bg:'#E9E2D0',fg:'#071A18',gl:'#071A18',gr:'#3a2a1c',ac:'#D9442B',bl:'#8E0E12',vi:'#2F4A2A'},
-  amarelo:{bg:'#F4E21B',fg:'#0A0A0A',gl:'#0A0A0A',gr:'#C4121A',ac:'#0A0A0A',bl:'#C4121A',vi:'#0A0A0A'}
+  ficha:{bg:'#FFFFFF',fg:'#0A0A0A',gl:'#0A0A0A',gr:'#0A0A0A',ac:'#0A0A0A',bl:'#000000',vi:'#0A0A0A',ru:'#0A0A0A'},
+  escuro:{bg:'#071A18',fg:'#A4D8A7',gl:'#A4D8A7',gr:'#A4D8A7',ac:'#D9442B',bl:'#B3161B',vi:'#6FB06A',ru:'#B5651D'},
+  claro:{bg:'#E9E2D0',fg:'#071A18',gl:'#071A18',gr:'#3a2a1c',ac:'#D9442B',bl:'#8E0E12',vi:'#2F4A2A',ru:'#8B4513'},
+  amarelo:{bg:'#F4E21B',fg:'#0A0A0A',gl:'#0A0A0A',gr:'#C4121A',ac:'#0A0A0A',bl:'#C4121A',vi:'#0A0A0A',ru:'#7A3B10'}
 };
-const DEF={seed:'verbum',chaos:.12,deg:0,corner:'nenhum',cs:24,medal:false,mr:11,depth:3,ornPt:1.6,ac:'#0A0A0A',bl:'#000000',vi:'#0A0A0A',vines:0,glass:.5,grunge:.55,layout:'dupla',size:'210x297',pw:210,ph:297,margin:12,
+const DEF={seed:'verbum',chaos:.12,deg:0,corner:'nenhum',cs:24,medal:false,mr:11,depth:3,ornPt:1.6,ac:'#0A0A0A',bl:'#000000',vi:'#0A0A0A',ru:'#0A0A0A',vines:0,glass:.5,grunge:.55,layout:'dupla',size:'210x297',pw:210,ph:297,margin:12,
   railGap:6,ladderDown:1,rung:'barras',rungSp:5.5,rungT:1.5,spikesIn:'grade',spikesOut:'nenhum',spikeL:4,spikeB:2,spikeSp:9,
   impacts:6,bottom:.7,shards:true,grungeIn:false,
   railPt:6,crackPt:.9,bg:'#FFFFFF',fg:'#0A0A0A',gl:'#0A0A0A',gr:'#0A0A0A',transparent:false,dpi:300,grain:true};
@@ -1096,7 +1143,7 @@ const bindings=[
   ['railGap','num',0],['ladderDown','pct',2],['rung','sel'],['rungSp','num',1],['rungT','num',1],['spikesIn','sel'],['spikesOut','sel'],
   ['spikeL','num',1],['spikeB','num',1],['spikeSp','num',1],
   ['impacts','num',0],['bottom','pct',2],['shards','chk'],['grungeIn','chk'],['railPt','num',1],['crackPt','num',1],
-  ['bg','col'],['fg','col'],['gl','col'],['gr','col'],['ac','col'],['bl','col'],['vi','col'],['transparent','chk'],['dpi','num',0],['grain','chk']
+  ['bg','col'],['fg','col'],['gl','col'],['gr','col'],['ac','col'],['bl','col'],['vi','col'],['ru','col'],['transparent','chk'],['dpi','num',0],['grain','chk']
 ];
 function toUI(){
   $('chaos').value=Math.round(S.chaos*100);$('deg').value=Math.round((S.deg||0)*100);$('glass').value=Math.round(S.glass*100);$('grunge').value=Math.round(S.grunge*100);
