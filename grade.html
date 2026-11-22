@@ -42,6 +42,10 @@ button:hover{border-color:var(--hi)}
 button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
 .btns{display:flex;flex-wrap:wrap;gap:6px}
 .btns button{flex:1 1 auto}
+#entropy{padding:12px;border:1px solid var(--line);border-radius:8px;background:#061513}
+#entropy .ends{display:flex;justify-content:space-between;font:500 12px Oswald,sans-serif;letter-spacing:.12em;text-transform:uppercase}
+#entropy .ends b{color:var(--hi);font-weight:500}#entropy .ends i{color:var(--ac);font-style:normal}
+#cval{font-family:"Special Elite",monospace;color:var(--tx);text-align:center;font-size:13px;margin-top:2px}
 .box{padding:12px;border:1px solid var(--line);border-radius:8px;background:#061513;margin-top:8px}
 .box:first-child{margin-top:0}
 .box .ends{display:flex;justify-content:space-between;font:500 12px Oswald,sans-serif;letter-spacing:.12em;text-transform:uppercase}
@@ -64,7 +68,7 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
 <body>
 <header>
   <h1>Entro<span>p</span>ia</h1>
-  <p>grade &amp; vidro · ferro e vidro quebrado, como no demoplay</p>
+  <p>grade &amp; vidro · ferro e vidro quebrado, da ordem à ruína</p>
   <nav class="tabs">
     <a href="index.html">Molduras</a>
     <a href="grade.html" class="on">Grade &amp; Vidro</a>
@@ -74,9 +78,14 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
   <section id="stage"><div id="view"></div></section>
   <aside>
     <div class="grp">
+      <div id="entropy">
+        <div class="ends"><b>Ordem</b><i>Caos</i></div>
+        <input type="range" id="chaos" min="0" max="100" value="12">
+        <div id="cval">entropia 0.12</div>
+      </div>
       <div class="box">
         <div class="ends"><b>Vidro inteiro</b><i>Estilhaçado</i></div>
-        <input type="range" id="glass" min="0" max="100" value="55">
+        <input type="range" id="glass" min="0" max="100" value="50">
         <div class="val" id="glassV"></div>
       </div>
       <div class="box">
@@ -86,10 +95,9 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
       </div>
       <div class="btns" style="margin-top:8px">
         <button data-preset="pagina">Página</button>
-        <button data-preset="ficha">Ficha</button>
         <button data-preset="catedral">Catedral</button>
         <button data-preset="carcere">Cárcere</button>
-        <button data-preset="relicario">Relicário</button>
+        <button data-preset="ruina">Ruína</button>
         <button data-preset="limpo">Limpo</button>
       </div>
     </div>
@@ -123,38 +131,15 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
         <input type="number" id="ph" value="297" min="50" max="600" title="altura mm">
       </div>
       <label>Margem: <span id="marginV"></span> mm</label>
-      <input type="range" id="margin" min="3" max="40" value="11">
-      <div id="topPadWrap">
-      <label>Espaço acima do arco: <span id="topPadV"></span> mm</label>
-      <input type="range" id="topPad" min="0" max="60" value="15">
-      </div>
-    </div>
-
-    <div class="grp">
-      <h2>Forma</h2>
-      <select id="arch">
-        <option value="reto">Página — segue as margens</option>
-        <option value="redondo">Ficha — arco redondo</option>
-        <option value="ogival">Ficha — arco ogival (gótico)</option>
-      </select>
-      <p class="note" id="archNote"></p>
-      <div id="archOnly">
-      <label>Altura do arco: <span id="archKV"></span></label>
-      <input type="range" id="archK" min="20" max="130" value="78">
-      <label>Abertura no topo para o logo: <span id="gapV"></span> mm</label>
-      <input type="range" id="gap" min="0" max="140" value="44">
-      <label class="chk"><input type="checkbox" id="finial" checked> Pontas de lança na nascente do arco</label>
-      <label>Tamanho das pontas: <span id="finLV"></span> mm</label>
-      <input type="range" id="finL" min="4" max="30" value="8">
-      </div>
+      <input type="range" id="margin" min="3" max="40" value="12">
     </div>
 
     <div class="grp">
       <h2>Grade de ferro</h2>
       <label>Largura da grade: <span id="railGapV"></span> mm</label>
-      <input type="range" id="railGap" min="2" max="20" value="7">
-      <label><span id="ladderLbl">Grade desce pelas laterais</span>: <span id="ladderDownV"></span></label>
-      <input type="range" id="ladderDown" min="0" max="100" value="24">
+      <input type="range" id="railGap" min="2" max="20" value="6">
+      <label>Grade desce do topo: <span id="ladderDownV"></span></label>
+      <input type="range" id="ladderDown" min="0" max="100" value="100">
       <label>Barras</label>
       <select id="rung">
         <option value="barras">Barras (escada)</option>
@@ -168,45 +153,23 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
       </div>
       <label>Espinhos para dentro</label>
       <select id="spikesIn">
-        <option value="arco">Só no arco / topo</option>
         <option value="grade">Em toda a grade</option>
+        <option value="arco">Só no topo</option>
         <option value="nenhum">Nenhum</option>
       </select>
       <label>Espinhos para fora</label>
       <select id="spikesOut">
         <option value="nenhum">Nenhum</option>
-        <option value="arco">Só no arco / topo</option>
+        <option value="arco">Só no topo</option>
         <option value="grade">Na grade</option>
         <option value="tudo">Em toda a volta</option>
       </select>
       <div class="row">
-        <div><label>Comprimento: <span id="spikeLV"></span></label><input type="range" id="spikeL" min="1" max="14" value="4.5" step=".5"></div>
-        <div><label>Base: <span id="spikeBV"></span></label><input type="range" id="spikeB" min=".6" max="8" value="2.2" step=".2"></div>
+        <div><label>Comprimento: <span id="spikeLV"></span></label><input type="range" id="spikeL" min="1" max="14" value="4" step=".5"></div>
+        <div><label>Base: <span id="spikeBV"></span></label><input type="range" id="spikeB" min=".6" max="8" value="2" step=".2"></div>
       </div>
       <label>Espaço entre espinhos: <span id="spikeSpV"></span> mm</label>
-      <input type="range" id="spikeSp" min="2" max="20" value="9.5" step=".5">
-    </div>
-
-    <div class="grp">
-      <h2>Divisórias</h2>
-      <div id="div1Wrap">
-      <label>Na nascente do arco</label>
-      <select id="div1">
-        <option value="linha">Linha</option>
-        <option value="dupla">Linha dupla</option>
-        <option value="espinhos">Com espinhos</option>
-        <option value="nenhum">Nenhuma</option>
-      </select>
-      </div>
-      <label>No fim da grade</label>
-      <select id="div2">
-        <option value="espinhos">Com espinhos</option>
-        <option value="linha">Linha</option>
-        <option value="dupla">Linha dupla</option>
-        <option value="nenhum">Nenhuma</option>
-      </select>
-      <label>Vão para título: <span id="titleGapV"></span> mm</label>
-      <input type="range" id="titleGap" min="0" max="120" value="52">
+      <input type="range" id="spikeSp" min="2" max="20" value="9" step=".5">
     </div>
 
     <div class="grp">
@@ -306,126 +269,97 @@ const add=(p,v,k)=>[p[0]+v[0]*k,p[1]+v[1]*k];
 function ellipsePoly(x,y,rx,ry,a,n){n=n||10;const p=[];const c=Math.cos(a),s=Math.sin(a);
   for(let i=0;i<=n;i++){const t=i/n*TAU;const u=rx*Math.cos(t),v=ry*Math.sin(t);p.push([x+u*c-v*s,y+u*s+v*c]);}return p;}
 
-/* ---------- geometria da moldura (uma página) ---------- */
-function pageGeom(S,ox){
-  const pw=S.pw,ph=S.ph,m=S.margin;
-  const x0=ox+m,x1=ox+pw-m,yb=ph-m,cx=(x0+x1)/2,hw=(x1-x0)/2;
-  const reto=S.arch==='reto';
-  const top=m+(reto?0:S.topPad);
-  let ah=0,R=0;
-  if(S.arch==='redondo')ah=hw*S.archK;
-  else if(S.arch==='ogival'){R=hw*(1+S.archK*.8);ah=Math.sqrt(R*R-(R-hw)*(R-hw));}
-  let ys=reto?top:Math.min(top+ah,yb-20);
-  const w=S.railGap,sw=S.railPt*.3528;
-  const full=S.ladderDown>=.995;
-  const yLad=ys+(yb-ys)*S.ladderDown;
-  const gap=Math.min(S.gap,2*(hw-w-4));
-  const gapY=reto?top+w+sw:ys; // abaixo disto não há abertura para logo
-  return {ox,pw,x0,x1,yb,cx,hw,top,ah,R,ys,w,sw,full,yLad,gap,gapY,reto};
+/* ---------- geometria da moldura (uma página, segue as margens) ---------- */
+function pageGeom(P,ox){
+  const m=P.margin;const x0=ox+m,x1=ox+P.pw-m,y0=m,yb=P.ph-m;
+  const w=P.railGap,sw=P.railPt*.3528;
+  const full=P.ladderDown>=.995;
+  const yLad=y0+(yb-y0)*P.ladderDown;
+  return {ox,x0,x1,y0,yb,w,sw,full,yLad};
 }
-// arco no recuo t (t>0 para dentro), da esquerda para a direita
-function archPts(g,S,t){
-  const {x0,x1,cx,hw,ys,ah,R,top}=g;const p=[];
-  if(S.arch==='redondo'){const a=Math.max(.2,ah-t),b=hw-t;const N=220;
-    for(let i=0;i<=N;i++){const th=Math.PI+i/N*Math.PI;p.push([cx+b*Math.cos(th),ys+a*Math.sin(th)]);}}
-  else if(S.arch==='ogival'){const r=R-t,lc=x0+R;const c=clamp((hw-R)/r,-1,1);const a1=TAU-Math.acos(c);const N=120;const left=[];
-    for(let i=0;i<=N;i++){const a=Math.PI+(a1-Math.PI)*i/N;left.push([lc+r*Math.cos(a),ys+r*Math.sin(a)]);}
-    left[left.length-1][0]=cx;
-    const right=left.slice(0,-1).reverse().map(([x,y])=>[2*cx-x,y]);
-    return left.concat(right);}
-  else{p.push([x0+t,top+t],[x1-t,top+t]);}
-  return p;
-}
-// contorno completo (fechado) ou aberto até yEnd
-function contour(g,S,t,closed,yEnd){
-  const {x0,x1,yb}=g;const a=archPts(g,S,t);let p;
-  if(closed){p=[[x0+t,yb-t]].concat(a).concat([[x1-t,yb-t],[x0+t,yb-t]]);}
-  else p=[[x0+t,yEnd]].concat(a).concat([[x1-t,yEnd]]);
+// contorno no recuo t (t>0 para dentro): fechado, ou aberto descendo até yEnd
+function contour(g,t,closed,yEnd){
+  const {x0,x1,y0,yb}=g;let p;
+  if(closed)p=[[x0+t,yb-t],[x0+t,y0+t],[x1-t,y0+t],[x1-t,yb-t],[x0+t,yb-t]];
+  else p=[[x0+t,yEnd],[x0+t,y0+t],[x1-t,y0+t],[x1-t,yEnd]];
   return resample(p,.6);
 }
-const inGap=(g,x,y)=>g.gap>0&&y<g.gapY-.01&&Math.abs(x-g.cx)<g.gap/2;
-function cutGap(g,pts){
-  const parts=[],ends=[];let cur=[];
-  for(let i=0;i<pts.length;i++){const [x,y]=pts[i];
-    if(inGap(g,x,y)){if(cur.length){parts.push(cur);ends.push(cur[cur.length-1]);cur=[];}}
-    else{if(!cur.length&&i>0&&inGap(g,pts[i-1][0],pts[i-1][1]))ends.push(pts[i]);cur.push(pts[i]);}}
-  if(cur.length)parts.push(cur);
-  return {parts:parts.filter(q=>q.length>1),ends};
-}
+const rv=(v,a)=>{const c=Math.cos(a),s=Math.sin(a);return [v[0]*c-v[1]*s,v[0]*s+v[1]*c];};
 
-/* ---------- a grade de ferro ---------- */
-function buildFrame(g,S,out){
-  const {x0,x1,cx,ys,w,sw,full,yLad}=g;
+/* ---------- a grade de ferro ----------
+   r: sorteios desta página (sempre feitos, para a moldura não "pular" ao mexer no caos)
+   c: entropia 0..1 */
+function buildFrame(g,P,out,r,c){
+  const {x0,x1,y0,yb,w,sw,full,yLad}=g;
   const F=(p,o)=>out.push(sh(p,Object.assign({L:'frame',c:'fg'},o)));
   // trilhos
-  const outer=cutGap(g,contour(g,S,0,true));
-  outer.parts.forEach(p=>F(p,{w:sw}));
-  const innerPts=contour(g,S,w,full,yLad);
-  const inner=cutGap(g,innerPts);
-  inner.parts.forEach(p=>F(p,{w:sw}));
-  // tampas onde o logo interrompe a grade
-  if(outer.ends.length===2&&inner.ends.length===2){
-    const so=outer.ends.slice().sort((a,b)=>a[0]-b[0]),si=inner.ends.slice().sort((a,b)=>a[0]-b[0]);
-    F([so[0],si[0]],{w:sw});F([so[1],si[1]],{w:sw});
-  }
-  // tampas no fim da grade
+  F(contour(g,0,true),{w:sw});
+  F(contour(g,w,full,yLad),{w:sw});
   if(!full){F([[x0,yLad],[x0+w,yLad]],{w:sw});F([[x1-w,yLad],[x1,yLad]],{w:sw});}
+  // caos: trilhos passam do ponto nos cantos
+  [0,w].forEach(t=>{
+    const cs=[[x0+t,y0+t,-1,-1],[x1-t,y0+t,1,-1]];if(t===0||full)cs.push([x0+t,yb-t,-1,1],[x1-t,yb-t,1,1]);
+    cs.forEach(([x,y,sx,sy])=>{const a=c*c*r()*16,b=c*c*r()*16,ka=r(),kb=r();
+      if(a>.4&&ka<c*1.2)F([[x,y],[x+sx*a,y+(r()-.5)*c*2]],{w:sw*.8});else r();
+      if(b>.4&&kb<c*1.2)F([[x,y],[x+(r()-.5)*c*2,y+sy*b]],{w:sw*.8});else r();});
+  });
   // barras entre os trilhos
-  if(S.rung!=='nenhum'){
-    const mid=contour(g,S,w/2,full,yLad);const W=walker(mid);
-    const n=Math.max(2,Math.round(W.L/S.rungSp));const st=W.L/n;const hw=w/2-sw*.35;
-    const sm=[];for(let i=0;i<=n;i++)sm.push(W.at(full?i*st:(i+.5)*st));
-    for(let i=0;i<sm.length-(full?1:0);i++){const {p,t,n:nn}=sm[i];if(i===n&&!full)break;
-      if(inGap(g,p[0],p[1]))continue;
-      if(S.rung==='barras'){const r=S.rungT/2;
-        F([add(add(p,nn,-hw),t,-r),add(add(p,nn,-hw),t,r),add(add(p,nn,hw),t,r),add(add(p,nn,hw),t,-r)],{fill:true});}
-      else if(S.rung==='losango'){const a=Math.min(st*.42,w*.45);
+  if(P.rung!=='nenhum'){
+    const mid=contour(g,w/2,full,yLad);const W=walker(mid);
+    const n=Math.max(2,Math.round(W.L/P.rungSp));const st=W.L/n;const hw=w/2-sw*.35;
+    const sm=[];for(let i=0;i<=n;i++){const q=W.at(full?i*st:(i+.5)*st);q.k=r();q.a=r()-.5;sm.push(q);}
+    for(let i=0;i<n;i++){const q=sm[i];if(q.k<c*c*.5)continue;
+      const p=q.p,t=rv(q.t,q.a*c*.9),nn=rv(q.n,q.a*c*.9);
+      if(P.rung==='barras'){const rr=P.rungT/2;
+        F([add(add(p,nn,-hw),t,-rr),add(add(p,nn,-hw),t,rr),add(add(p,nn,hw),t,rr),add(add(p,nn,hw),t,-rr)],{fill:true});}
+      else if(P.rung==='losango'){const a=Math.min(st*.42,w*.45);
         F([add(p,nn,-hw),add(p,t,a),add(p,nn,hw),add(p,t,-a)],{fill:true});}
-      else if(S.rung==='cruz'){const q=sm[i+1];if(!q||inGap(g,q.p[0],q.p[1]))continue;
-        F([add(p,nn,-hw),add(q.p,q.n,hw)],{w:S.rungT*.6});F([add(p,nn,hw),add(q.p,q.n,-hw)],{w:S.rungT*.6});}
+      else if(P.rung==='cruz'){const q2=sm[i+1];
+        F([add(p,nn,-hw),add(q2.p,q2.n,hw)],{w:P.rungT*.6});F([add(p,nn,hw),add(q2.p,q2.n,-hw)],{w:P.rungT*.6});}
     }
   }
   // espinhos
-  const spikes=(pts,dir,filter)=>{const W=walker(pts);const n=Math.max(1,Math.round(W.L/S.spikeSp));const st=W.L/n;const b=S.spikeB/2;
-    for(let i=0;i<n;i++){const {p,t,n:nn}=W.at((i+.5)*st);if(!filter(p))continue;
-      const a=add(p,t,-b),c=add(p,t,b);if(inGap(g,p[0],p[1])||inGap(g,a[0],a[1])||inGap(g,c[0],c[1]))continue;
-      F([a,add(p,nn,dir*S.spikeL),c],{fill:true});}};
-  const arcOnly=g.reto?(p=>p[1]<g.top+w+sw):(p=>p[1]<ys-.5);
-  if(S.spikesIn!=='nenhum'){
-    const pts=contour(g,S,w+sw*.45,full,yLad);
-    spikes(pts,1,S.spikesIn==='arco'?arcOnly:p=>p[1]<yLad-S.spikeB);
+  const spikes=(pts,dir,filter)=>{const W=walker(pts);const n=Math.max(1,Math.round(W.L/P.spikeSp));const st=W.L/n;const b=P.spikeB/2;
+    for(let i=0;i<n;i++){const {p,t,n:nn}=W.at((i+.5)*st);const k=r(),lj=r(),ln=r();if(!filter(p)||k<c*c*.45)continue;
+      const len=P.spikeL*(1+(lj-.5)*c*1.4);
+      F([add(p,t,-b),add(add(p,nn,dir*len),t,(ln-.5)*c*P.spikeB*2.5),add(p,t,b)],{fill:true});}};
+  const topOnly=p=>p[1]<y0+w+sw;
+  if(P.spikesIn!=='nenhum'){
+    spikes(contour(g,w+sw*.45,full,yLad),1,P.spikesIn==='arco'?topOnly:full?()=>true:p=>p[1]<yLad-P.spikeB);
   }
-  if(S.spikesOut!=='nenhum'){
-    const pts=contour(g,S,-sw*.45,true);
-    const f=S.spikesOut==='arco'?arcOnly:S.spikesOut==='grade'?(p=>p[1]<yLad):(()=>true);
-    spikes(pts,-1,f);
+  if(P.spikesOut!=='nenhum'){
+    const f=P.spikesOut==='arco'?topOnly:P.spikesOut==='grade'?(p=>p[1]<yLad):(()=>true);
+    spikes(contour(g,-sw*.45,true),-1,f);
   }
-  // pontas de lança na nascente do arco
-  if(S.finial&&!g.reto){const L=S.finL,h=L*.32,bh=sw*.9;
-    [[x0,1],[x1,-1]].forEach(([xe,s])=>{const X=d=>xe-s*d;const xi=xe+s*w;
-      F([[X(L),ys],[X(L*.55),ys-h],[X(L*.12),ys],[X(L*.55),ys+h]],{fill:true});
-      F([[X(L*.2),ys-bh/2],[xi+s*L*.22,ys-bh/2],[xi+s*L*.22,ys+bh/2],[X(L*.2),ys+bh/2]],{fill:true});
-      F([[xi+s*L*.18,ys-h*.62],[xi+s*L*.5,ys],[xi+s*L*.18,ys+h*.62]],{fill:true});
-      F([[X(L*.62),ys-h*.6],[X(L*.55),ys-h*1.9],[X(L*.48),ys-h*.6]],{fill:true});
-      F([[X(L*.62),ys+h*.6],[X(L*.55),ys+h*1.9],[X(L*.48),ys+h*.6]],{fill:true});
-    });}
-  // divisórias
-  const divider=(y,style)=>{if(style==='nenhum')return;
-    const inGrade=full||y<=yLad+.01;const xl=x0+(inGrade?w:0)+sw/2,xr=x1-(inGrade?w:0)-sw/2;
-    const tg=Math.min(S.titleGap,xr-xl-10);const gl=cx-tg/2,gr=cx+tg/2;
-    const seg=(yy,ww)=>{if(tg>0){F([[xl,yy],[gl,yy]],{w:ww});F([[gr,yy],[xr,yy]],{w:ww});}else F([[xl,yy],[xr,yy]],{w:ww});};
-    let yBot=y;
-    seg(y,sw*.75);
-    if(style==='dupla'){yBot=y+sw*.75+1.4;seg(yBot,sw*.3);}
-    if(style==='espinhos'){const L=S.spikeL*.8,b=S.spikeB*.8/2;const y0=y+sw*.37;yBot=y0+L+1;
-      const runs=tg>0?[[xl,gl],[gr,xr]]:[[xl,xr]];
-      runs.forEach(([a,c])=>{const n=Math.max(1,Math.round((c-a)/S.spikeSp));const st=(c-a)/n;
-        for(let i=0;i<n;i++){const xx=a+(i+.5)*st;F([[xx-b,y0],[xx,y0+L],[xx+b,y0]],{fill:true});}});
-      seg(yBot,sw*.25);}
-    if(tg>0){F([[gl,y-2.2],[gl,yBot+2.2]],{w:sw*.4});F([[gr,y-2.2],[gr,yBot+2.2]],{w:sw*.4});}
-  };
-  if(!g.reto)divider(ys,S.div1);
-  if(!full&&S.ladderDown>.02)divider(yLad,S.div2);
+}
+// variação da segunda página no caos
+function vary(S,rng,c){
+  const R=Array.from({length:12},()=>rng());const q=Object.assign({},S);const j=(v,a,i)=>v*(1+(R[i]*2-1)*a*c);
+  q.railGap=j(S.railGap,.5,0);q.rungSp=j(S.rungSp,.6,1);q.rungT=j(S.rungT,.5,2);q.spikeL=j(S.spikeL,.7,3);q.spikeSp=j(S.spikeSp,.6,4);q.spikeB=j(S.spikeB,.5,5);
+  if(S.rung!=='nenhum'&&R[6]<c*.5)q.rung=['barras','cruz','losango'][Math.floor(R[7]*3)];
+  if(R[8]<c*.35)q.spikesIn=['arco','grade','nenhum'][Math.floor(R[9]*3)];
+  if(S.ladderDown<.995)q.ladderDown=clamp(S.ladderDown*(1+(R[10]*2-1)*c*.6),0,1);
+  return q;
+}
+// entropia no ferro: ruído, quebras e sobretraço (mão nervosa)
+function entropize(shapes,S,c,out){
+  if(c<.001){shapes.forEach(s=>out.push(s));return;}
+  const nx=makeNoise(RNG(S.seed,'nx')),ny=makeNoise(RNG(S.seed,'ny')),nx2=makeNoise(RNG(S.seed,'nx2')),ny2=makeNoise(RNG(S.seed,'ny2'));
+  const amp=Math.pow(c,1.5)*4.5,fine=c*c*.5,fr=.035;const rb=RNG(S.seed,'quebra');
+  const disp=(pts,A,Fi,NX,NY,o)=>pts.map(([x,y])=>[x+NX(x*fr+o,y*fr)*A+NX(x*.6,y*.6+o)*Fi,y+NY(x*fr,y*fr+o)*A+NY(x*.6+o,y*.6)*Fi]);
+  const pathLen=p=>{let L=0;for(let i=1;i<p.length;i++)L+=Math.hypot(p[i][0]-p[i-1][0],p[i][1]-p[i-1][1]);return L;};
+  shapes.forEach((s,si)=>{
+    let pts=disp(resample(s.p,1.1),amp,fine,nx,ny,0);
+    if(s.fill){out.push(Object.assign({},s,{p:pts}));return;}
+    const pb=c*c*.55;const segs=[];let cur=[pts[0]];let acc=0;let runL=6+rb()*30;let drop=false;
+    for(let i=1;i<pts.length;i++){acc+=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);
+      if(acc>runL){acc=0;runL=drop?(1.5+rb()*6*c):(6+rb()*40);const nd=rb()<pb;if(!drop&&cur.length>1)segs.push(cur);cur=[pts[i]];drop=nd;continue;}
+      if(!drop)cur.push(pts[i]);}
+    if(!drop&&cur.length>1)segs.push(cur);
+    segs.forEach(q=>out.push(Object.assign({},s,{p:q})));
+    const t=rb();
+    if(c>.25&&t<(c-.25)*1.1&&pathLen(s.p)>4)out.push(Object.assign({},s,{p:disp(resample(s.p,1.1),amp*1.8+.4,fine*2,nx2,ny2,si*.37),w:s.w*.55}));
+  });
 }
 
 /* ---------- vidro estilhaçado ---------- */
@@ -527,12 +461,32 @@ function buildGrunge(S,pages,H,out,dots){
 
 /* ---------- geração ---------- */
 function generate(S){
-  const dupla=S.layout==='dupla';const W=dupla?S.pw*2:S.pw,H=S.ph;
+  const c=S.chaos;const dupla=S.layout==='dupla';const W=dupla?S.pw*2:S.pw,H=S.ph;
   const pages=dupla?[[0,S.pw],[S.pw,S.pw]]:[[0,S.pw]];
-  const out=[],dots=[],clips=[];
+  const out=[],dots=[],clips=[],frame=[];
   buildGlass(S,W,H,out);
   buildGrunge(S,pages,H,out,dots);
-  pages.forEach(([ox])=>{const g=pageGeom(S,ox);buildFrame(g,S,out);clips.push(contour(g,S,-g.sw/2,true));});
+  pages.forEach(([ox],pi)=>{
+    const P=pi===0?S:vary(S,RNG(S.seed,'pag'+pi),c);
+    const g=pageGeom(P,ox);const loc=[];
+    buildFrame(g,P,loc,RNG(S.seed,'ferro'+pi),c);
+    // giro leve da página inteira no caos
+    const rr=RNG(S.seed,'rot'+pi);const ang=(rr()*2-1)*c*c*2.2*Math.PI/180,tx=(rr()*2-1)*c*c*3,ty=(rr()*2-1)*c*c*3;
+    const cxp=ox+S.pw/2,cyp=S.ph/2,co=Math.cos(ang),si=Math.sin(ang);
+    const T=([x,y])=>{const dx=x-cxp,dy=y-cyp;return [cxp+dx*co-dy*si+tx,cyp+dx*si+dy*co+ty];};
+    loc.forEach(s=>{s.p=s.p.map(T);frame.push(s);});
+    clips.push(contour(g,-g.sw/2,true).map(T));
+  });
+  entropize(frame,S,c,out);
+  // rabiscos nas margens (só no caos alto)
+  const rx=RNG(S.seed,'rabisco');
+  for(let i=0;i<8;i++){const th=rx(),side=rx(),t=rx(),d=rx();const n=40+Math.floor(rx()*80);
+    const m=S.margin*(.3+d*.7);const x0=side<.25?t*W:side<.5?t*W:side<.75?m:W-m,y0=side<.25?m:side<.5?H-m:t*H;
+    if(th>=Math.max(0,c-.55)*1.6)continue;
+    const r2=RNG(S.seed,'rab'+i);let x=x0,y=y0,a=r2()*TAU;const pts=[[x,y]];
+    for(let k=0;k<n;k++){a+=(r2()-.5)*1.6;x+=Math.cos(a)*1.6;y+=Math.sin(a)*1.6;pts.push([x,y]);}
+    out.push(sh(pts,{L:'frame',c:'fg',w:.16}));
+  }
   return {W,H,pw:S.pw,dupla,shapes:out,dots,clips};
 }
 
@@ -554,7 +508,7 @@ function toSVG(G,S,opts){
   const guides=opts.guides&&G.dupla?`<line x1="${G.pw}" y1="0" x2="${G.pw}" y2="${G.H}" stroke="${S.fg}" stroke-opacity=".18" stroke-width=".3" stroke-dasharray="2 2"/>`:'';
   const grunge=`<g id="tinta">\n${dots}\n${layer('grunge')}\n</g>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${f2(G.W)}mm" height="${f2(G.H)}mm" viewBox="0 0 ${f2(G.W)} ${f2(G.H)}">
-<title>Entropia · Grade &amp; Vidro — ${S.seed} — vidro ${S.glass.toFixed(2)} — grunge ${S.grunge.toFixed(2)}</title>
+<title>Entropia · Grade &amp; Vidro — ${S.seed} — entropia ${S.chaos.toFixed(2)} — vidro ${S.glass.toFixed(2)} — grunge ${S.grunge.toFixed(2)}</title>
 <defs><clipPath id="pg"><rect width="${f2(G.W)}" height="${f2(G.H)}"/></clipPath>
 <clipPath id="fora"><path clip-rule="evenodd" d="${clipD}"/></clipPath></defs>
 ${bg}
@@ -581,22 +535,19 @@ const PALS={
   claro:{bg:'#E9E2D0',fg:'#071A18',gl:'#071A18',gr:'#3a2a1c'},
   amarelo:{bg:'#F4E21B',fg:'#0A0A0A',gl:'#0A0A0A',gr:'#C4121A'}
 };
-const DEF={seed:'verbum',glass:.5,grunge:.55,layout:'dupla',size:'210x297',pw:210,ph:297,margin:12,topPad:15,
-  arch:'reto',archK:.78,gap:0,finial:true,finL:8,
+const DEF={seed:'verbum',chaos:.12,glass:.5,grunge:.55,layout:'dupla',size:'210x297',pw:210,ph:297,margin:12,
   railGap:6,ladderDown:1,rung:'barras',rungSp:5.5,rungT:1.5,spikesIn:'grade',spikesOut:'nenhum',spikeL:4,spikeB:2,spikeSp:9,
-  div1:'nenhum',div2:'nenhum',titleGap:52,impacts:6,bottom:.7,shards:true,grungeIn:false,
+  impacts:6,bottom:.7,shards:true,grungeIn:false,
   railPt:6,crackPt:.9,bg:'#FFFFFF',fg:'#0A0A0A',gl:'#0A0A0A',gr:'#0A0A0A',transparent:false,dpi:300,grain:true};
 const PRESETS={
-  pagina:{glass:.5,grunge:.55,arch:'reto',gap:0,margin:12,railGap:6,ladderDown:1,rung:'barras',rungSp:5.5,rungT:1.5,
-    spikesIn:'grade',spikesOut:'nenhum',spikeL:4,spikeB:2,spikeSp:9,div2:'nenhum',impacts:6,bottom:.7,railPt:6},
-  ficha:{glass:.55,grunge:.55,arch:'redondo',archK:.78,gap:44,finial:true,railGap:7,ladderDown:.24,rung:'barras',rungSp:5.5,rungT:1.5,
-    spikesIn:'arco',spikesOut:'nenhum',spikeL:4.5,spikeB:2.2,spikeSp:9.5,div1:'linha',div2:'espinhos',titleGap:52,impacts:6,bottom:.7,railPt:6,finL:8,margin:11,topPad:15,layout:'unica'},
-  catedral:{glass:.4,grunge:.35,arch:'reto',gap:0,margin:14,railGap:8,ladderDown:1,rung:'losango',rungSp:7,
-    spikesIn:'nenhum',spikesOut:'tudo',spikeL:5,spikeB:2.4,spikeSp:8,div2:'nenhum',impacts:4,bottom:.4,railPt:5},
-  carcere:{glass:.85,grunge:.85,arch:'reto',gap:0,margin:12,railGap:9,ladderDown:1,rung:'cruz',rungSp:6,rungT:1.4,
-    spikesIn:'grade',spikesOut:'tudo',spikeL:5,spikeB:2,spikeSp:7,div2:'nenhum',impacts:8,bottom:1,railPt:7},
-  relicario:{glass:.3,grunge:.45,arch:'reto',gap:0,margin:12,railGap:5,ladderDown:.14,rung:'barras',rungSp:4,rungT:1,
-    spikesIn:'grade',spikesOut:'nenhum',spikeL:3.5,spikeB:1.6,spikeSp:6,div2:'espinhos',titleGap:0,impacts:3,bottom:.5,railPt:4},
+  pagina:{chaos:.12,glass:.5,grunge:.55,margin:12,railGap:6,ladderDown:1,rung:'barras',rungSp:5.5,rungT:1.5,
+    spikesIn:'grade',spikesOut:'nenhum',spikeL:4,spikeB:2,spikeSp:9,impacts:6,bottom:.7,railPt:6},
+  catedral:{chaos:0,glass:.4,grunge:.35,margin:14,railGap:8,ladderDown:1,rung:'losango',rungSp:7,
+    spikesIn:'nenhum',spikesOut:'tudo',spikeL:5,spikeB:2.4,spikeSp:8,impacts:4,bottom:.4,railPt:5},
+  carcere:{chaos:.4,glass:.85,grunge:.85,margin:12,railGap:9,ladderDown:1,rung:'cruz',rungSp:6,rungT:1.4,
+    spikesIn:'grade',spikesOut:'tudo',spikeL:5,spikeB:2,spikeSp:7,impacts:8,bottom:1,railPt:7},
+  ruina:{chaos:.85,glass:.9,grunge:.8,margin:12,railGap:6,ladderDown:1,rung:'barras',rungSp:5.5,rungT:1.5,
+    spikesIn:'grade',spikesOut:'arco',spikeL:4.5,spikeB:2,spikeSp:8,impacts:8,bottom:.9,railPt:6},
   limpo:{glass:0,grunge:0}
 };
 const WORDS=['verbum','emunah','lacrimah','eden','spiritum','apogeu','silencio','zeit','inclemente','revelado','adjuracao','codice','kamia','vozes','reliquia','vazio','exorcismo','trinitum','sintonia','desapego'];
@@ -606,14 +557,14 @@ try{const h=location.hash.slice(1);if(h){const o=JSON.parse(decodeURIComponent(e
 const $=id=>document.getElementById(id);
 // [chave, tipo, casas no rótulo]
 const bindings=[
-  ['seed','text'],['margin','num',0],['topPad','num',0],['arch','sel'],['archK','pct',2],['gap','num',0],['finial','chk'],['finL','num',0],
+  ['seed','text'],['margin','num',0],
   ['railGap','num',0],['ladderDown','pct',2],['rung','sel'],['rungSp','num',1],['rungT','num',1],['spikesIn','sel'],['spikesOut','sel'],
-  ['spikeL','num',1],['spikeB','num',1],['spikeSp','num',1],['div1','sel'],['div2','sel'],['titleGap','num',0],
+  ['spikeL','num',1],['spikeB','num',1],['spikeSp','num',1],
   ['impacts','num',0],['bottom','pct',2],['shards','chk'],['grungeIn','chk'],['railPt','num',1],['crackPt','num',1],
   ['bg','col'],['fg','col'],['gl','col'],['gr','col'],['transparent','chk'],['dpi','num',0],['grain','chk']
 ];
 function toUI(){
-  $('glass').value=Math.round(S.glass*100);$('grunge').value=Math.round(S.grunge*100);
+  $('chaos').value=Math.round(S.chaos*100);$('glass').value=Math.round(S.glass*100);$('grunge').value=Math.round(S.grunge*100);
   bindings.forEach(([k,t])=>{const el=$(k);if(!el)return;
     if(t==='chk')el.checked=!!S[k];else if(t==='pct')el.value=Math.round(S[k]*100);else el.value=S[k];});
   $('size').value=S.size;$('pw').value=S.pw;$('ph').value=S.ph;
@@ -621,13 +572,9 @@ function toUI(){
   labels();
 }
 function labels(){
-  $('glassV').textContent='estilhaço '+S.glass.toFixed(2);$('grungeV').textContent='grunge '+S.grunge.toFixed(2);
+  $('cval').textContent='entropia '+S.chaos.toFixed(2);$('glassV').textContent='estilhaço '+S.glass.toFixed(2);$('grungeV').textContent='grunge '+S.grunge.toFixed(2);
   bindings.forEach(([k,t,dec])=>{const el=$(k+'V');if(!el)return;el.textContent=(t==='pct'?S[k].toFixed(dec):Number(S[k]).toFixed(dec));});
   $('customSize').style.display=S.size==='custom'?'flex':'none';
-  const reto=S.arch==='reto';
-  ['archOnly','topPadWrap','div1Wrap'].forEach(id=>$(id).style.display=reto?'none':'block');
-  $('ladderLbl').textContent=reto?'Grade desce do topo':'Grade desce pelas laterais';
-  $('archNote').textContent=reto?'Moldura retangular nas margens, para as páginas do livro.':'Arco no topo, como na ficha de personagem.';
 }
 let raf=0;
 function render(){cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{
@@ -636,6 +583,7 @@ function render(){cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{
   try{history.replaceState(null,'','#'+btoa(unescape(encodeURIComponent(JSON.stringify(S)))));}catch(e){}
   labels();
 });}
+$('chaos').addEventListener('input',e=>{S.chaos=e.target.value/100;render();});
 $('glass').addEventListener('input',e=>{S.glass=e.target.value/100;render();});
 $('grunge').addEventListener('input',e=>{S.grunge=e.target.value/100;render();});
 bindings.forEach(([k,t])=>{const el=$(k);if(!el)return;
@@ -651,7 +599,7 @@ document.querySelectorAll('[data-pal]').forEach(b=>b.addEventListener('click',()
 $('dice').addEventListener('click',()=>{S.seed=WORDS[Math.floor(Math.random()*WORDS.length)]+'-'+Math.floor(Math.random()*999);toUI();render();});
 
 function toast(t){const el=$('toast');el.textContent=t;el.style.opacity=1;clearTimeout(toast.t);toast.t=setTimeout(()=>el.style.opacity=0,1800);}
-function fname(ext){return `grade-${S.seed.replace(/[^a-z0-9-]+/gi,'_')}-v${Math.round(S.glass*100)}-g${Math.round(S.grunge*100)}-${S.layout}.${ext}`;}
+function fname(ext){return `grade-${S.seed.replace(/[^a-z0-9-]+/gi,'_')}-e${Math.round(S.chaos*100)}-v${Math.round(S.glass*100)}-g${Math.round(S.grunge*100)}-${S.layout}.${ext}`;}
 function download(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
 $('expSvg').addEventListener('click',()=>{const g=generate(S);download(new Blob([toSVG(g,S,{noBg:S.transparent})],{type:'image/svg+xml'}),fname('svg'));toast('SVG exportado');});
 $('expPng').addEventListener('click',()=>{
