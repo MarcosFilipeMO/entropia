@@ -219,7 +219,7 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
       <h2>Cipós</h2>
       <label>Cipós na grade: <span id="vinesV"></span></label>
       <input type="range" id="vines" min="0" max="100" value="0">
-      <p class="note">0 = sem cipós. Na ordem, crescem em trança regular com folhas em par; com a entropia ficam selvagens, soltam da grade, ganham gavinhas e galhos pendurados.</p>
+      <p class="note">0 = sem cipós. Na ordem, crescem em trança regular com folhas em par; com a entropia ficam selvagens, soltam da grade, trocam as folhas por espinhos e ganham gavinhas e galhos pendurados.</p>
     </div>
 
     <div class="grp">
@@ -742,13 +742,15 @@ function buildVines(g,P,F,blocked,c,pi){
   const amt=P.vines||0;if(amt<=0)return;
   const {w,full,yLad}=g;const W=walker(contour(g,w/2,full,yLad));const Lc=W.L;
   const sw=.6;
-  // contorno na cor do fundo: separa o cipó do ferro, como numa gravura
-  const VF=(p,o)=>{o=Object.assign({c:'vi',nobrk:true},o);
-    if(o.fill)F(p.concat([p[0]]),{c:'bg',w:.7,nobrk:true});else F(p,{c:'bg',w:o.w+.75,nobrk:true});F(p,o);};
+  const VF=(p,o)=>F(p,Object.assign({c:'vi',nobrk:true},o));
   const nz=makeNoise(RNG(P.seed,'cipoN'+pi));
   const posAt=s=>full?((s%Lc)+Lc)%Lc:clamp(s,0,Lc);
   // ramo de folha + gavinha + galho pendurado, a partir de um ponto do caule
-  const leaf=(p,axis,L)=>{if(!blocked(p))VF(leafPts(p,axis,L),{fill:true});};
+  // folha ou espinho: cada posição tem um limiar fixo; quanto mais caos, mais folhas viram espinhos
+  const leaf=(p,axis,L,key)=>{if(blocked(p))return;
+    if(h01(P.seed,'cipoEsp'+pi,key)<c*1.1){const q=[-axis[1],axis[0]],b=L*.17,h=L*.62,bend=(h01(P.seed,'cipoCurva'+pi,key)-.5)*L*.35;
+      VF([add(p,q,-b),add(add(p,axis,h*.55),q,bend*.4-b*.25),add(add(p,axis,h),q,bend),add(add(p,axis,h*.5),q,bend*.3+b*.3),add(p,q,b)],{fill:true});}
+    else VF(leafPts(p,axis,L),{fill:true});};
   const tendril=(p,dir,R,turns,sgn)=>{const cx=p[0]+dir[0]*R,cy=p[1]+dir[1]*R,a0=Math.atan2(-dir[1],-dir[0]);const pts=[];
     for(let i=0;i<=48;i++){const u=i/48,a=a0+sgn*u*turns*TAU,r=R*(1-u*.85);pts.push([cx+Math.cos(a)*r,cy+Math.sin(a)*r]);}
     VF(pts,{w:sw*.55});};
@@ -775,13 +777,13 @@ function buildVines(g,P,F,blocked,c,pi){
         const q=W.at(posAt(s));const {o,th:t2}=off(s);const p=add(q.p,q.n,o);const side=Math.sin(t2)>=0?1:-1;
         const L=w*1.05*(1+(kS-.5)*c*1.3);
         if(kL>=c*.35){ // folha (na ordem: sempre, em par simétrico)
-          const ax=rv([q.n[0]*side,q.n[1]*side],(m%2?.55:-.55)+(kA-.5)*c*2);leaf(p,ax,L);
-          if(c<.35&&strands===2){const ax2=rv([q.n[0]*side,q.n[1]*side],(m%2?-.55:.55)+(kA2-.5)*c*2);leaf(p,ax2,L*.8);}}
+          const ax=rv([q.n[0]*side,q.n[1]*side],(m%2?.55:-.55)+(kA-.5)*c*2);leaf(p,ax,L,k*1e4+m*10);
+          if(c<.35&&strands===2){const ax2=rv([q.n[0]*side,q.n[1]*side],(m%2?-.55:.55)+(kA2-.5)*c*2);leaf(p,ax2,L*.8,k*1e4+m*10+1);}}
         if(kT<.08+c*.45){const dir=rv([q.n[0]*side,q.n[1]*side],(kA2-.5)*1.4);tendril(p,dir,w*(.3+kS*.25)*(1+c*.6),1.3+c*1.2,kG<.5?1:-1);}
         // galhos pendurados (só no caos)
         if(kG<c*c*.55){let x=p[0],y=p[1];let a=Math.atan2(q.n[1]*side,q.n[0]*side)+(kG2-.5)*1.2;const br=[[x,y]];const n=Math.round(8+kG3*26*c);
           for(let i=0;i<n;i++){a+=(nz(i*.3+s,rot+m)*.9)+(Math.PI/2-a)*.04;x+=Math.cos(a)*1.1;y+=Math.sin(a)*1.1;br.push([x,y]);
-            if(i%6===5&&!blocked([x,y]))leaf([x,y],rv([Math.cos(a),Math.sin(a)],i%12===5?.7:-.7),L*.7);}
+            if(i%6===5&&!blocked([x,y]))leaf([x,y],rv([Math.cos(a),Math.sin(a)],i%12===5?.7:-.7),L*.7,k*1e4+m*10+2+i);}
           VF(br,{w:sw*.7});}
       }
     }
