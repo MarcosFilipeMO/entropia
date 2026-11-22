@@ -16,6 +16,10 @@ header{display:flex;align-items:baseline;gap:14px;padding:14px 18px;border-botto
 header h1{margin:0;font:700 26px/1 Oswald,Impact,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--hi)}
 header h1 span{color:var(--ac)}
 header p{margin:0;font-family:"Special Elite",monospace;color:var(--mut);font-size:13px}
+nav.tabs{display:flex;gap:4px;margin-left:auto;align-self:center}
+nav.tabs a{font:500 12px/1 Oswald,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);text-decoration:none;padding:8px 12px;border:1px solid var(--line);border-radius:6px}
+nav.tabs a:hover{border-color:var(--hi);color:var(--tx)}
+nav.tabs a.on{background:var(--hi);border-color:var(--hi);color:#071A18}
 main{display:grid;grid-template-columns:minmax(0,1fr) 340px;min-height:calc(100vh - 58px)}
 #stage{position:relative;display:flex;align-items:center;justify-content:center;padding:22px;background:
   radial-gradient(ellipse at center,#0e2a26 0%,#050f0e 80%)}
@@ -57,6 +61,7 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
   #stage{padding:12px;position:sticky;top:0;z-index:2;background:#050f0e}
   #view svg{max-height:42vh}
   aside{max-height:none;border-left:0;border-top:1px solid var(--line)}
+  nav.tabs{margin-left:0;width:100%}
 }
 </style>
 </head>
@@ -64,6 +69,10 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
 <header>
   <h1>Entro<span>p</span>ia</h1>
   <p>molduras de página · da ordem sagrada à ruína</p>
+  <nav class="tabs">
+    <a href="index.html" class="on">Molduras</a>
+    <a href="grade.html">Grade &amp; Vidro</a>
+  </nav>
 </header>
 <main>
   <section id="stage"><div id="view"></div></section>
