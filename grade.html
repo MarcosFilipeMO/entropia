@@ -216,6 +216,13 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
     </div>
 
     <div class="grp">
+      <h2>Cipós</h2>
+      <label>Cipós na grade: <span id="vinesV"></span></label>
+      <input type="range" id="vines" min="0" max="100" value="0">
+      <p class="note">0 = sem cipós. Na ordem, crescem em trança regular com folhas em par; com a entropia ficam selvagens, soltam da grade, ganham gavinhas e galhos pendurados.</p>
+    </div>
+
+    <div class="grp">
       <h2>Vidro e tinta</h2>
       <label>Pontos de impacto: <span id="impactsV"></span></label>
       <input type="range" id="impacts" min="1" max="10" value="6">
@@ -246,7 +253,8 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
       <div class="row">
         <div><label>Destaque</label><input type="color" id="ac"></div>
         <div><label>Sangue</label><input type="color" id="bl"></div>
-        <div></div><div></div>
+        <div><label>Cipó</label><input type="color" id="vi"></div>
+        <div></div>
       </div>
       <label class="chk"><input type="checkbox" id="transparent"> Exportar sem fundo</label>
     </div>
@@ -660,8 +668,8 @@ function buildFrame(g,P,out,r,c){
   const cutM=pts=>{const parts=[];let cur=[];pts.forEach(p=>{if(blocked(p)){if(cur.length>1)parts.push(cur);cur=[];}else cur.push(p);});
     if(cur.length>1)parts.push(cur);return parts;};
   // ---- trilhos ----
-  cutM(contour(g,0,true)).forEach(p=>F(p,{w:sw}));
-  cutM(contour(g,w,full,yLad)).forEach(p=>F(p,{w:sw}));
+  cutM(contour(g,0,true)).forEach(p=>F(p,{w:sw,rail:'o'}));
+  cutM(contour(g,w,full,yLad)).forEach(p=>F(p,{w:sw,rail:'i'}));
   if(!full)[[[x0,yLad],[x0+w,yLad]],[[x1-w,yLad],[x1,yLad]]].forEach(l=>{if(!blocked(l[0])&&!blocked(l[1]))F(l,{w:sw});});
   // caos: trilhos passam do ponto nos cantos
   [0,w].forEach(t=>{
@@ -677,14 +685,13 @@ function buildFrame(g,P,out,r,c){
       const len=b-a;const n=Math.max(1,Math.round(len/P.rungSp));const st=len/n;
       for(let i=0;i<n;i++){const k=r(),ta=r()-.5;if(k<c*c*.5)continue;
         const p=at(sd,a+(i+.5)*st),ang=ta*c*.9,t=rv(sd.d,ang),nn=rv(sd.n,ang);
-        if(dg>.28&&h01(P.degSeed,'olhoB'+sd.id+ri,i)<(dg-.28)*1.3){
-          orn(o=>eye(o,p[0],p[1],Math.min(st*1.7,w*1.6),Math.atan2(sd.d[1],sd.d[0]),P.degSeed+i*31+si*9999,dg));continue;}
+        const anch=[[...add(p,sd.n,-w/2),'o'],[...add(p,sd.n,w/2),'i']];
         if(P.rung==='barras'){const q=P.rungT/2;
-          F([add(add(p,nn,-hw),t,-q),add(add(p,nn,-hw),t,q),add(add(p,nn,hw),t,q),add(add(p,nn,hw),t,-q)],{fill:true});}
+          F([add(add(p,nn,-hw),t,-q),add(add(p,nn,-hw),t,q),add(add(p,nn,hw),t,q),add(add(p,nn,hw),t,-q)],{fill:true,anch});}
         else if(P.rung==='losango'){const q=Math.min(st*.42,w*.45);
-          F([add(p,nn,-hw),add(p,t,q),add(p,nn,hw),add(p,t,-q)],{fill:true});}
+          F([add(p,nn,-hw),add(p,t,q),add(p,nn,hw),add(p,t,-q)],{fill:true,anch});}
         else{const p0=at(sd,a+i*st),p1=at(sd,a+(i+1)*st);
-          F([add(p0,nn,-hw),add(p1,nn,hw)],{w:P.rungT*.6});F([add(p0,nn,hw),add(p1,nn,-hw)],{w:P.rungT*.6});}
+          F([add(p0,nn,-hw),add(p1,nn,hw)],{w:P.rungT*.6,anch});F([add(p0,nn,hw),add(p1,nn,-hw)],{w:P.rungT*.6,anch});}
       }}));
     // cantos da grade (sem medalhão): rebite ou X
     const ck=[[x0+w/2,y0+w/2],[x1-w/2,y0+w/2]];if(full)ck.push([x1-w/2,yb-w/2],[x0+w/2,yb-w/2]);
@@ -694,22 +701,24 @@ function buildFrame(g,P,out,r,c){
       else F(circlePts(p[0],p[1],Math.min(hw*.7,P.rungT*.9+.3),20),{fill:true});});
   }
   // ---- espinhos: também lado a lado ----
-  const spikeRun=(sides,dir)=>sides.forEach(sd=>freeRuns(sd,P.spikeB*.5+.6,meds,P.spikeB*.5+.3).forEach(([a,b])=>{
+  const spikeRun=(sides,dir,rail)=>sides.forEach(sd=>freeRuns(sd,P.spikeB*.5+.6,meds,P.spikeB*.5+.3).forEach(([a,b])=>{
     const len=b-a;if(len<P.spikeB)return;const n=Math.max(1,Math.round(len/P.spikeSp));const st=len/n;const hb=P.spikeB/2;
     for(let i=0;i<n;i++){const k=r(),lj=r(),ln=r();if(k<c*c*.45)continue;const p=at(sd,a+(i+.5)*st);
       const L=P.spikeL*(1+(lj-.5)*c*1.4);
-      F([add(p,sd.d,-hb),add(add(p,sd.n,dir*L),sd.d,(ln-.5)*c*P.spikeB*2.5),add(p,sd.d,hb)],{fill:true});}}));
-  if(P.spikesIn!=='nenhum'){let s=rectSides(g,w+sw*.45,full?null:yLad);if(P.spikesIn==='arco')s=s.filter(q=>q.id==='t');spikeRun(s,1);}
+      F([add(p,sd.d,-hb),add(add(p,sd.n,dir*L),sd.d,(ln-.5)*c*P.spikeB*2.5),add(p,sd.d,hb)],{fill:true,anch:[[...add(p,sd.n,dir*-sw*.45),rail]]});}}));
+  if(P.spikesIn!=='nenhum'){let s=rectSides(g,w+sw*.45,full?null:yLad);if(P.spikesIn==='arco')s=s.filter(q=>q.id==='t');spikeRun(s,1,'i');}
   if(P.spikesOut!=='nenhum'){const to=-sw*.45;let s=P.spikesOut==='grade'&&!full?rectSides(g,to,yLad):rectSides(g,to,null);
-    if(P.spikesOut==='arco')s=s.filter(q=>q.id==='t');spikeRun(s,-1);
+    if(P.spikesOut==='arco')s=s.filter(q=>q.id==='t');spikeRun(s,-1,'o');
     // espinho diagonal em cada canto
     const all=P.spikesOut==='tudo'||(P.spikesOut==='grade'&&full);
     const cc=[[x0+to,y0+to,-1,-1],[x1-to,y0+to,1,-1]];if(all)cc.push([x1-to,yb-to,1,1],[x0+to,yb-to,-1,1]);
     cc.forEach(([x,y,sx,sy])=>{const k=r(),lj=r();if(blocked([x,y])||k<c*c*.45)return;const D=[sx/Math.SQRT2,sy/Math.SQRT2],Q=[-D[1],D[0]];const hb=P.spikeB/2;
-      F([add([x,y],Q,-hb),add([x,y],D,P.spikeL*1.25*(1+(lj-.5)*c*1.4)),add([x,y],Q,hb)],{fill:true});});
+      F([add([x,y],Q,-hb),add([x,y],D,P.spikeL*1.25*(1+(lj-.5)*c*1.4)),add([x,y],Q,hb)],{fill:true,anch:[[x-sx*sw*.45,y-sy*sw*.45,'o']]});});
   }
   // ---- degeneração ----
   degenerate(g,P,meds,F,orn);
+  // ---- cipós ----
+  buildVines(g,P,F,blocked,c,g.ox>0?1:0);
   // ---- medalhões por cima ----
   meds.forEach((m,mi)=>{const k1=r(),k2=r(),k3=r();
     F(circlePts(m.x,m.y,m.R,72),{fill:true,c:'bg'});
@@ -717,9 +726,66 @@ function buildFrame(g,P,out,r,c){
     if(m.k==='c'){let st=P.corner;if(k1<c*.5)st=CORNERS[Math.floor(k2*4)];
       const rot=(k3-.5)*c*1.8+(st==='quadrado'?Math.PI/4:0);
       orn(o=>drawCorner(o,st,0,0,m.R*.84,P.depth,rot,P.glyphSeed),([u,v])=>[m.x+m.sx*u,m.y+m.sy*v]);
-      if(dg>.72){const ge=g01(dg,.72,1);orn(o=>eye(o,m.x,m.y,m.R*2*(.25+ge*.35),Math.atan2(m.sy,m.sx),P.degSeed+77+mi,dg));}
-    }else orn(o=>drawMedal(o,m.x,m.y,m.R*.86,8,3,P.depth,m.rot+(k3-.5)*c*1.6,0,false,dg,P.degSeed));
+    }else orn(o=>drawMedal(o,m.x,m.y,m.R*.86,8,3,P.depth,m.rot+(k3-.5)*c*1.6,0,false,0,P.degSeed));
   });
+}
+
+/* ============================================================
+   CIPÓS — crescem enroscados na grade.
+   Na ordem: trança regular de dois ramos, folhas em par a intervalos iguais.
+   No caos: um ramo só, solto da grade, folhas tortas, gavinhas e galhos pendurados.
+   ============================================================ */
+function leafPts(base,axis,L){const q=[-axis[1],axis[0]];const a=[],b=[];
+  for(let i=0;i<=10;i++){const u=i/10,hw=L*.27*Math.pow(Math.sin(Math.PI*u),.85)*(1-u*.25);const p=add(base,axis,u*L);a.push(add(p,q,hw));b.push(add(p,q,-hw));}
+  return a.concat(b.reverse());}
+function buildVines(g,P,F,blocked,c,pi){
+  const amt=P.vines||0;if(amt<=0)return;
+  const {w,full,yLad}=g;const W=walker(contour(g,w/2,full,yLad));const Lc=W.L;
+  const sw=.6;
+  // contorno na cor do fundo: separa o cipó do ferro, como numa gravura
+  const VF=(p,o)=>{o=Object.assign({c:'vi',nobrk:true},o);
+    if(o.fill)F(p.concat([p[0]]),{c:'bg',w:.7,nobrk:true});else F(p,{c:'bg',w:o.w+.75,nobrk:true});F(p,o);};
+  const nz=makeNoise(RNG(P.seed,'cipoN'+pi));
+  const posAt=s=>full?((s%Lc)+Lc)%Lc:clamp(s,0,Lc);
+  // ramo de folha + gavinha + galho pendurado, a partir de um ponto do caule
+  const leaf=(p,axis,L)=>{if(!blocked(p))VF(leafPts(p,axis,L),{fill:true});};
+  const tendril=(p,dir,R,turns,sgn)=>{const cx=p[0]+dir[0]*R,cy=p[1]+dir[1]*R,a0=Math.atan2(-dir[1],-dir[0]);const pts=[];
+    for(let i=0;i<=48;i++){const u=i/48,a=a0+sgn*u*turns*TAU,r=R*(1-u*.85);pts.push([cx+Math.cos(a)*r,cy+Math.sin(a)*r]);}
+    VF(pts,{w:sw*.55});};
+  for(let k=0;k<7;k++){
+    const r=RNG(P.seed,'cipo'+pi+'_'+k);
+    const th=r(),s0=r()*Lc,len=Lc*(.18+r()*.4)*(full?1:.8),ph=r()*TAU,lam=w*(2.3+r()*.6),two=r(),rot=r()*100;
+    if(th>=amt*1.05)continue;
+    const strands=two>c*1.25?2:1; // na ordem, trança de dois ramos
+    for(let sN=0;sN<strands;sN++){
+      const phi=ph+sN*Math.PI;let cur=[];const parts=[];
+      const off=s=>{const u=(s-s0)/len,taper=Math.min(1,u*6,(1-u)*6);
+        const A=w*.55*(1+nz(s*.05,rot+sN)*c*1.3)*Math.max(.25,taper);
+        const drift=nz(s*.018,rot+7)*c*c*14+(nz(s*.09,rot+3)*c*2.2);
+        const th2=TAU*(s-s0)/(lam*(1+nz(s*.03,rot+11)*c*.5))+phi;return {o:A*Math.sin(th2)+drift,th:th2};};
+      for(let s=s0;s<=s0+len;s+=.7){const q=W.at(posAt(s));const {o}=off(s);const p=add(q.p,q.n,o);
+        if(blocked(p)||(!full&&(s<0||s>Lc))){if(cur.length>1)parts.push(cur);cur=[];}else cur.push(p);}
+      if(cur.length>1)parts.push(cur);
+      parts.forEach(pp=>VF(pp,{w:sw*(sN?.8:1)}));
+      if(sN>0)continue;
+      // folhas e gavinhas nas cristas da onda
+      const step=lam/2;let m=0;
+      for(let s=s0+step*.5;s<s0+len-step*.3;s+=step,m++){
+        const kL=r(),kS=r(),kA=r(),kA2=r(),kT=r(),kG=r(),kG2=r(),kG3=r();
+        const q=W.at(posAt(s));const {o,th:t2}=off(s);const p=add(q.p,q.n,o);const side=Math.sin(t2)>=0?1:-1;
+        const L=w*1.05*(1+(kS-.5)*c*1.3);
+        if(kL>=c*.35){ // folha (na ordem: sempre, em par simétrico)
+          const ax=rv([q.n[0]*side,q.n[1]*side],(m%2?.55:-.55)+(kA-.5)*c*2);leaf(p,ax,L);
+          if(c<.35&&strands===2){const ax2=rv([q.n[0]*side,q.n[1]*side],(m%2?-.55:.55)+(kA2-.5)*c*2);leaf(p,ax2,L*.8);}}
+        if(kT<.08+c*.45){const dir=rv([q.n[0]*side,q.n[1]*side],(kA2-.5)*1.4);tendril(p,dir,w*(.3+kS*.25)*(1+c*.6),1.3+c*1.2,kG<.5?1:-1);}
+        // galhos pendurados (só no caos)
+        if(kG<c*c*.55){let x=p[0],y=p[1];let a=Math.atan2(q.n[1]*side,q.n[0]*side)+(kG2-.5)*1.2;const br=[[x,y]];const n=Math.round(8+kG3*26*c);
+          for(let i=0;i<n;i++){a+=(nz(i*.3+s,rot+m)*.9)+(Math.PI/2-a)*.04;x+=Math.cos(a)*1.1;y+=Math.sin(a)*1.1;br.push([x,y]);
+            if(i%6===5&&!blocked([x,y]))leaf([x,y],rv([Math.cos(a),Math.sin(a)],i%12===5?.7:-.7),L*.7);}
+          VF(br,{w:sw*.7});}
+      }
+    }
+  }
 }
 
 /* ============================================================
@@ -733,7 +799,7 @@ function degenerate(g,P,meds,F,orn){
   outer.forEach(S=>freeRuns(S,1,meds,.5).forEach(([a,b],ri)=>{const key=S.id+ri;
     for(let k=0,t=b-2.5;t>a;k++,t-=4.2){if(h01(sd,'esp'+key,k)>=(dg-.08)*1.5)continue;
       const sz=(.8+dg*2.6)*(.6+h01(sd,'esz'+key,k)*.8),dir=k%2?-1:1,bb=.55+dg*.4,p=at(S,t);
-      F([add(p,S.d,-bb),add(add(p,S.n,-dir*sz),S.d,(h01(sd,'ex'+key,k)-.5)*1.2),add(p,S.d,bb)],{fill:true});}}));
+      F([add(p,S.d,-bb),add(add(p,S.n,-dir*sz),S.d,(h01(sd,'ex'+key,k)-.5)*1.2),add(p,S.d,bb)],{fill:true,anch:[[...p,'o']]});}}));
   // 2. suturas atravessando o trilho de fora
   outer.forEach(S=>freeRuns(S,3,meds,1).forEach(([a,b],ri)=>{const key=S.id+ri;
     for(let k=0,t=b-5;t>a;k++,t-=7.5){if(h01(sd,'sut'+key,k)>=(dg-.3)*1.7)continue;
@@ -756,7 +822,7 @@ function degenerate(g,P,meds,F,orn){
   if(gt>0)inner.forEach(S=>freeRuns(S,2,meds,1).forEach(([a,b],ri)=>{const key=S.id+ri,tw=2.4+h01(sd,'tw',0)*1.2;
     for(let k=0,t=a;t<b-tw;k++,t+=tw){if(h01(sd,'den'+key,k)>=gt*1.4)continue;
       const len=(1.5+h01(sd,'dl'+key,k)*4.5)*gt*(1+dg);
-      F([at(S,t),add(at(S,t+tw*(.35+h01(sd,'dx'+key,k)*.3)),S.n,len),at(S,t+tw)],{fill:true});}}));
+      F([at(S,t),add(at(S,t+tw*(.35+h01(sd,'dx'+key,k)*.3)),S.n,len),at(S,t+tw)],{fill:true,anch:[[...add(at(S,t+tw/2),S.n,-sw/2),'i']]});}}));
   if(dg>.62)inner.forEach(S=>freeRuns(S,3,meds,1).forEach(([a,b],ri)=>{const key=S.id+ri;
     for(let k=0,t=a+3;t<b;k++,t+=6.5){if(h01(sd,'pus'+key,k)>=(dg-.62)*2.6)continue;const nc=1+Math.floor(h01(sd,'pn'+key,k)*3);
       for(let j=0;j<nc;j++){const rr=.7+h01(sd,'pr'+key,k*7+j)*1.6*dg,off=(h01(sd,'po'+key,k*7+j)-.5)*3;
@@ -800,17 +866,31 @@ function entropize(shapes,S,c,out){
   const amp=Math.pow(c,1.5)*4.5,fine=c*c*.5,fr=.035;const rb=RNG(S.seed,'quebra');
   const disp=(pts,A,Fi,NX,NY,o)=>pts.map(([x,y])=>[x+NX(x*fr+o,y*fr)*A+NX(x*.6,y*.6+o)*Fi,y+NY(x*fr,y*fr+o)*A+NY(x*.6+o,y*.6)*Fi]);
   const pathLen=p=>{let L=0;for(let i=1;i<p.length;i++)L+=Math.hypot(p[i][0]-p[i-1][0],p[i][1]-p[i-1][1]);return L;};
+  // pontos dos trilhos que caíram (antes do ruído), numa grade espacial por trilho
+  const holes=new Map(),CELL=1.5,key=(k,x,y)=>k+'|'+Math.floor(x/CELL)+'|'+Math.floor(y/CELL);
+  const mark=(k,[x,y])=>{const h=key(k,x,y);if(!holes.has(h))holes.set(h,[]);holes.get(h).push([x,y]);};
+  const fell=([x,y,k])=>{const gx=Math.floor(x/CELL),gy=Math.floor(y/CELL);
+    for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++){const L=holes.get(k+'|'+(gx+i)+'|'+(gy+j));if(L&&L.some(([u,v])=>Math.hypot(u-x,v-y)<1.25))return true;}return false;};
   shapes.forEach((s,si)=>{
-    let pts=disp(resample(s.p,1.1),amp,fine,nx,ny,0);
-    if(s.fill){out.push(Object.assign({},s,{p:pts}));return;}
-    const pb=c*c*.55;const segs=[];let cur=[pts[0]];let acc=0;let runL=6+rb()*30;let drop=false;
+    if(s.anch&&s.anch.some(fell))return; // o trilho caiu aqui: a peça cai junto
+    const orig=resample(s.p,1.1);
+    let pts=disp(orig,amp,fine,nx,ny,0);
+    if(s.fill||s.nobrk){out.push(Object.assign({},s,{p:pts}));return;}
+    const pb=c*c*.55;const segs=[];let cur=[pts[0]],ci=[0];let acc=0;let runL=6+rb()*30;let drop=false;const kept=new Uint8Array(pts.length);
+    const flush=()=>{if(cur.length>1){segs.push(cur);ci.forEach(i=>kept[i]=1);}};
     for(let i=1;i<pts.length;i++){acc+=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);
-      if(acc>runL){acc=0;runL=drop?(1.5+rb()*6*c):(6+rb()*40);const nd=rb()<pb;if(!drop&&cur.length>1)segs.push(cur);cur=[pts[i]];drop=nd;continue;}
-      if(!drop)cur.push(pts[i]);}
-    if(!drop&&cur.length>1)segs.push(cur);
+      if(acc>runL){acc=0;const r1=rb(),nd=rb()<pb;if(!drop)flush();cur=[pts[i]];ci=[i];drop=nd;runL=drop?(1.5+r1*6*c):(6+r1*40);continue;}
+      if(!drop){cur.push(pts[i]);ci.push(i);}}
+    if(!drop)flush();
+    if(s.rail)for(let i=0;i<orig.length;i++)if(!kept[i])mark(s.rail,orig[i]);
     segs.forEach(q=>out.push(Object.assign({},s,{p:q})));
     const t=rb();
-    if(c>.25&&t<(c-.25)*1.1&&pathLen(s.p)>4)out.push(Object.assign({},s,{p:disp(resample(s.p,1.1),amp*1.8+.4,fine*2,nx2,ny2,si*.37),w:s.w*.55}));
+    if(c>.25&&t<(c-.25)*1.1&&pathLen(s.p)>4){
+      const p2=disp(orig,amp*1.8+.4,fine*2,nx2,ny2,si*.37);
+      if(!s.rail)out.push(Object.assign({},s,{p:p2,w:s.w*.55}));
+      else{let q=[];p2.forEach((pt,i)=>{if(kept[i])q.push(pt);else{if(q.length>1)out.push(Object.assign({},s,{p:q,w:s.w*.55}));q=[];}});
+        if(q.length>1)out.push(Object.assign({},s,{p:q,w:s.w*.55}));} // o sobretraço falha junto com o trilho
+    }
   });
 }
 
@@ -927,7 +1007,7 @@ function generate(S){
     const rr=RNG(S.seed,'rot'+pi);const ang=(rr()*2-1)*c*c*2.2*Math.PI/180,tx=(rr()*2-1)*c*c*3,ty=(rr()*2-1)*c*c*3;
     const cxp=ox+S.pw/2,cyp=S.ph/2,co=Math.cos(ang),si=Math.sin(ang);
     const T=([x,y])=>{const dx=x-cxp,dy=y-cyp;return [cxp+dx*co-dy*si+tx,cyp+dx*si+dy*co+ty];};
-    loc.forEach(s=>{s.p=s.p.map(T);frame.push(s);});
+    loc.forEach(s=>{s.p=s.p.map(T);if(s.anch)s.anch=s.anch.map(([x,y,k])=>[...T([x,y]),k]);frame.push(s);});
     clips.push(contour(g,-g.sw/2,true).map(T));
   });
   entropize(frame,S,c,out);
@@ -948,7 +1028,7 @@ const f2=n=>(Math.round(n*100)/100).toString();
 const pathD=p=>'M'+p.map(([x,y])=>f2(x)+' '+f2(y)).join('L');
 function toSVG(G,S,opts){
   opts=opts||{};
-  const COL={fg:S.fg,gl:S.gl,gr:S.gr,bg:S.bg,ac:S.ac,bl:S.bl};
+  const COL={fg:S.fg,gl:S.gl,gr:S.gr,bg:S.bg,ac:S.ac,bl:S.bl,vi:S.vi};
   const layer=L=>{const runs=[];
     G.shapes.forEach(s=>{if(s.L!==L||s.p.length<2)return;
       const d=pathD(s.p)+(s.fill?'Z':'');const k=s.fill?'F'+s.c:'S'+s.c+'|'+f2(Math.max(.06,s.w));
@@ -983,12 +1063,12 @@ ${guides}
 
 /* ---------- estado / UI ---------- */
 const PALS={
-  ficha:{bg:'#FFFFFF',fg:'#0A0A0A',gl:'#0A0A0A',gr:'#0A0A0A',ac:'#0A0A0A',bl:'#000000'},
-  escuro:{bg:'#071A18',fg:'#A4D8A7',gl:'#A4D8A7',gr:'#A4D8A7',ac:'#D9442B',bl:'#B3161B'},
-  claro:{bg:'#E9E2D0',fg:'#071A18',gl:'#071A18',gr:'#3a2a1c',ac:'#D9442B',bl:'#8E0E12'},
-  amarelo:{bg:'#F4E21B',fg:'#0A0A0A',gl:'#0A0A0A',gr:'#C4121A',ac:'#0A0A0A',bl:'#C4121A'}
+  ficha:{bg:'#FFFFFF',fg:'#0A0A0A',gl:'#0A0A0A',gr:'#0A0A0A',ac:'#0A0A0A',bl:'#000000',vi:'#0A0A0A'},
+  escuro:{bg:'#071A18',fg:'#A4D8A7',gl:'#A4D8A7',gr:'#A4D8A7',ac:'#D9442B',bl:'#B3161B',vi:'#6FB06A'},
+  claro:{bg:'#E9E2D0',fg:'#071A18',gl:'#071A18',gr:'#3a2a1c',ac:'#D9442B',bl:'#8E0E12',vi:'#2F4A2A'},
+  amarelo:{bg:'#F4E21B',fg:'#0A0A0A',gl:'#0A0A0A',gr:'#C4121A',ac:'#0A0A0A',bl:'#C4121A',vi:'#0A0A0A'}
 };
-const DEF={seed:'verbum',chaos:.12,deg:0,corner:'nenhum',cs:24,medal:false,mr:11,depth:3,ornPt:1.6,ac:'#0A0A0A',bl:'#000000',glass:.5,grunge:.55,layout:'dupla',size:'210x297',pw:210,ph:297,margin:12,
+const DEF={seed:'verbum',chaos:.12,deg:0,corner:'nenhum',cs:24,medal:false,mr:11,depth:3,ornPt:1.6,ac:'#0A0A0A',bl:'#000000',vi:'#0A0A0A',vines:0,glass:.5,grunge:.55,layout:'dupla',size:'210x297',pw:210,ph:297,margin:12,
   railGap:6,ladderDown:1,rung:'barras',rungSp:5.5,rungT:1.5,spikesIn:'grade',spikesOut:'nenhum',spikeL:4,spikeB:2,spikeSp:9,
   impacts:6,bottom:.7,shards:true,grungeIn:false,
   railPt:6,crackPt:.9,bg:'#FFFFFF',fg:'#0A0A0A',gl:'#0A0A0A',gr:'#0A0A0A',transparent:false,dpi:300,grain:true};
@@ -1012,11 +1092,11 @@ try{const h=location.hash.slice(1);if(h){const o=JSON.parse(decodeURIComponent(e
 const $=id=>document.getElementById(id);
 // [chave, tipo, casas no rótulo]
 const bindings=[
-  ['seed','text'],['margin','num',0],['corner','sel'],['cs','num',0],['medal','chk'],['mr','num',0],['depth','num',0],['ornPt','num',1],
+  ['seed','text'],['margin','num',0],['corner','sel'],['cs','num',0],['medal','chk'],['mr','num',0],['depth','num',0],['ornPt','num',1],['vines','pct',2],
   ['railGap','num',0],['ladderDown','pct',2],['rung','sel'],['rungSp','num',1],['rungT','num',1],['spikesIn','sel'],['spikesOut','sel'],
   ['spikeL','num',1],['spikeB','num',1],['spikeSp','num',1],
   ['impacts','num',0],['bottom','pct',2],['shards','chk'],['grungeIn','chk'],['railPt','num',1],['crackPt','num',1],
-  ['bg','col'],['fg','col'],['gl','col'],['gr','col'],['ac','col'],['bl','col'],['transparent','chk'],['dpi','num',0],['grain','chk']
+  ['bg','col'],['fg','col'],['gl','col'],['gr','col'],['ac','col'],['bl','col'],['vi','col'],['transparent','chk'],['dpi','num',0],['grain','chk']
 ];
 function toUI(){
   $('chaos').value=Math.round(S.chaos*100);$('deg').value=Math.round((S.deg||0)*100);$('glass').value=Math.round(S.glass*100);$('grunge').value=Math.round(S.grunge*100);
