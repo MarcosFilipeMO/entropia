@@ -64,7 +64,7 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
 <body>
 <header>
   <h1>Entro<span>p</span>ia</h1>
-  <p>grade &amp; vidro · o arco de ferro da ficha do Verbum</p>
+  <p>grade &amp; vidro · ferro e vidro quebrado, como no demoplay</p>
   <nav class="tabs">
     <a href="index.html">Molduras</a>
     <a href="grade.html" class="on">Grade &amp; Vidro</a>
@@ -85,6 +85,7 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
         <div class="val" id="grungeV"></div>
       </div>
       <div class="btns" style="margin-top:8px">
+        <button data-preset="pagina">Página</button>
         <button data-preset="ficha">Ficha</button>
         <button data-preset="catedral">Catedral</button>
         <button data-preset="carcere">Cárcere</button>
@@ -121,20 +122,23 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
         <input type="number" id="pw" value="210" min="50" max="600" title="largura mm">
         <input type="number" id="ph" value="297" min="50" max="600" title="altura mm">
       </div>
-      <label>Margem lateral: <span id="marginV"></span> mm</label>
+      <label>Margem: <span id="marginV"></span> mm</label>
       <input type="range" id="margin" min="3" max="40" value="11">
+      <div id="topPadWrap">
       <label>Espaço acima do arco: <span id="topPadV"></span> mm</label>
       <input type="range" id="topPad" min="0" max="60" value="15">
+      </div>
     </div>
 
     <div class="grp">
-      <h2>Arco</h2>
-      <label>Forma</label>
+      <h2>Forma</h2>
       <select id="arch">
-        <option value="redondo">Redondo (como a ficha)</option>
-        <option value="ogival">Ogival (gótico, pontudo)</option>
-        <option value="reto">Reto (sem arco)</option>
+        <option value="reto">Página — segue as margens</option>
+        <option value="redondo">Ficha — arco redondo</option>
+        <option value="ogival">Ficha — arco ogival (gótico)</option>
       </select>
+      <p class="note" id="archNote"></p>
+      <div id="archOnly">
       <label>Altura do arco: <span id="archKV"></span></label>
       <input type="range" id="archK" min="20" max="130" value="78">
       <label>Abertura no topo para o logo: <span id="gapV"></span> mm</label>
@@ -142,13 +146,14 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
       <label class="chk"><input type="checkbox" id="finial" checked> Pontas de lança na nascente do arco</label>
       <label>Tamanho das pontas: <span id="finLV"></span> mm</label>
       <input type="range" id="finL" min="4" max="30" value="8">
+      </div>
     </div>
 
     <div class="grp">
       <h2>Grade de ferro</h2>
       <label>Largura da grade: <span id="railGapV"></span> mm</label>
       <input type="range" id="railGap" min="2" max="20" value="7">
-      <label>Grade desce pelas laterais: <span id="ladderDownV"></span></label>
+      <label><span id="ladderLbl">Grade desce pelas laterais</span>: <span id="ladderDownV"></span></label>
       <input type="range" id="ladderDown" min="0" max="100" value="24">
       <label>Barras</label>
       <select id="rung">
@@ -163,14 +168,14 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
       </div>
       <label>Espinhos para dentro</label>
       <select id="spikesIn">
-        <option value="arco">Só no arco</option>
+        <option value="arco">Só no arco / topo</option>
         <option value="grade">Em toda a grade</option>
         <option value="nenhum">Nenhum</option>
       </select>
       <label>Espinhos para fora</label>
       <select id="spikesOut">
         <option value="nenhum">Nenhum</option>
-        <option value="arco">Só no arco</option>
+        <option value="arco">Só no arco / topo</option>
         <option value="grade">Na grade</option>
         <option value="tudo">Em toda a volta</option>
       </select>
@@ -184,6 +189,7 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
 
     <div class="grp">
       <h2>Divisórias</h2>
+      <div id="div1Wrap">
       <label>Na nascente do arco</label>
       <select id="div1">
         <option value="linha">Linha</option>
@@ -191,6 +197,7 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
         <option value="espinhos">Com espinhos</option>
         <option value="nenhum">Nenhuma</option>
       </select>
+      </div>
       <label>No fim da grade</label>
       <select id="div2">
         <option value="espinhos">Com espinhos</option>
@@ -303,17 +310,18 @@ function ellipsePoly(x,y,rx,ry,a,n){n=n||10;const p=[];const c=Math.cos(a),s=Mat
 function pageGeom(S,ox){
   const pw=S.pw,ph=S.ph,m=S.margin;
   const x0=ox+m,x1=ox+pw-m,yb=ph-m,cx=(x0+x1)/2,hw=(x1-x0)/2;
-  const top=m+S.topPad;
+  const reto=S.arch==='reto';
+  const top=m+(reto?0:S.topPad);
   let ah=0,R=0;
   if(S.arch==='redondo')ah=hw*S.archK;
   else if(S.arch==='ogival'){R=hw*(1+S.archK*.8);ah=Math.sqrt(R*R-(R-hw)*(R-hw));}
-  let ys=S.arch==='reto'?top+(yb-top)*.25:top+ah;
-  ys=Math.min(ys,yb-20);
+  let ys=reto?top:Math.min(top+ah,yb-20);
   const w=S.railGap,sw=S.railPt*.3528;
   const full=S.ladderDown>=.995;
   const yLad=ys+(yb-ys)*S.ladderDown;
   const gap=Math.min(S.gap,2*(hw-w-4));
-  return {ox,pw,x0,x1,yb,cx,hw,top,ah,R,ys,w,sw,full,yLad,gap};
+  const gapY=reto?top+w+sw:ys; // abaixo disto não há abertura para logo
+  return {ox,pw,x0,x1,yb,cx,hw,top,ah,R,ys,w,sw,full,yLad,gap,gapY,reto};
 }
 // arco no recuo t (t>0 para dentro), da esquerda para a direita
 function archPts(g,S,t){
@@ -325,7 +333,7 @@ function archPts(g,S,t){
     left[left.length-1][0]=cx;
     const right=left.slice(0,-1).reverse().map(([x,y])=>[2*cx-x,y]);
     return left.concat(right);}
-  else{p.push([x0+t,ys],[x0+t,top+t],[x1-t,top+t],[x1-t,ys]);}
+  else{p.push([x0+t,top+t],[x1-t,top+t]);}
   return p;
 }
 // contorno completo (fechado) ou aberto até yEnd
@@ -335,7 +343,7 @@ function contour(g,S,t,closed,yEnd){
   else p=[[x0+t,yEnd]].concat(a).concat([[x1-t,yEnd]]);
   return resample(p,.6);
 }
-const inGap=(g,x,y)=>g.gap>0&&y<g.ys-.01&&Math.abs(x-g.cx)<g.gap/2;
+const inGap=(g,x,y)=>g.gap>0&&y<g.gapY-.01&&Math.abs(x-g.cx)<g.gap/2;
 function cutGap(g,pts){
   const parts=[],ends=[];let cur=[];
   for(let i=0;i<pts.length;i++){const [x,y]=pts[i];
@@ -382,7 +390,7 @@ function buildFrame(g,S,out){
     for(let i=0;i<n;i++){const {p,t,n:nn}=W.at((i+.5)*st);if(!filter(p))continue;
       const a=add(p,t,-b),c=add(p,t,b);if(inGap(g,p[0],p[1])||inGap(g,a[0],a[1])||inGap(g,c[0],c[1]))continue;
       F([a,add(p,nn,dir*S.spikeL),c],{fill:true});}};
-  const arcOnly=p=>p[1]<ys-.5;
+  const arcOnly=g.reto?(p=>p[1]<g.top+w+sw):(p=>p[1]<ys-.5);
   if(S.spikesIn!=='nenhum'){
     const pts=contour(g,S,w+sw*.45,full,yLad);
     spikes(pts,1,S.spikesIn==='arco'?arcOnly:p=>p[1]<yLad-S.spikeB);
@@ -393,7 +401,7 @@ function buildFrame(g,S,out){
     spikes(pts,-1,f);
   }
   // pontas de lança na nascente do arco
-  if(S.finial){const L=S.finL,h=L*.32,bh=sw*.9;
+  if(S.finial&&!g.reto){const L=S.finL,h=L*.32,bh=sw*.9;
     [[x0,1],[x1,-1]].forEach(([xe,s])=>{const X=d=>xe-s*d;const xi=xe+s*w;
       F([[X(L),ys],[X(L*.55),ys-h],[X(L*.12),ys],[X(L*.55),ys+h]],{fill:true});
       F([[X(L*.2),ys-bh/2],[xi+s*L*.22,ys-bh/2],[xi+s*L*.22,ys+bh/2],[X(L*.2),ys+bh/2]],{fill:true});
@@ -416,7 +424,7 @@ function buildFrame(g,S,out){
       seg(yBot,sw*.25);}
     if(tg>0){F([[gl,y-2.2],[gl,yBot+2.2]],{w:sw*.4});F([[gr,y-2.2],[gr,yBot+2.2]],{w:sw*.4});}
   };
-  divider(ys,S.div1);
+  if(!g.reto)divider(ys,S.div1);
   if(!full&&S.ladderDown>.02)divider(yLad,S.div2);
 }
 
@@ -573,20 +581,22 @@ const PALS={
   claro:{bg:'#E9E2D0',fg:'#071A18',gl:'#071A18',gr:'#3a2a1c'},
   amarelo:{bg:'#F4E21B',fg:'#0A0A0A',gl:'#0A0A0A',gr:'#C4121A'}
 };
-const DEF={seed:'verbum',glass:.55,grunge:.55,layout:'unica',size:'210x297',pw:210,ph:297,margin:11,topPad:15,
-  arch:'redondo',archK:.78,gap:44,finial:true,finL:8,
-  railGap:7,ladderDown:.24,rung:'barras',rungSp:5.5,rungT:1.5,spikesIn:'arco',spikesOut:'nenhum',spikeL:4.5,spikeB:2.2,spikeSp:9.5,
-  div1:'linha',div2:'espinhos',titleGap:52,impacts:6,bottom:.7,shards:true,grungeIn:false,
+const DEF={seed:'verbum',glass:.5,grunge:.55,layout:'dupla',size:'210x297',pw:210,ph:297,margin:12,topPad:15,
+  arch:'reto',archK:.78,gap:0,finial:true,finL:8,
+  railGap:6,ladderDown:1,rung:'barras',rungSp:5.5,rungT:1.5,spikesIn:'grade',spikesOut:'nenhum',spikeL:4,spikeB:2,spikeSp:9,
+  div1:'nenhum',div2:'nenhum',titleGap:52,impacts:6,bottom:.7,shards:true,grungeIn:false,
   railPt:6,crackPt:.9,bg:'#FFFFFF',fg:'#0A0A0A',gl:'#0A0A0A',gr:'#0A0A0A',transparent:false,dpi:300,grain:true};
 const PRESETS={
+  pagina:{glass:.5,grunge:.55,arch:'reto',gap:0,margin:12,railGap:6,ladderDown:1,rung:'barras',rungSp:5.5,rungT:1.5,
+    spikesIn:'grade',spikesOut:'nenhum',spikeL:4,spikeB:2,spikeSp:9,div2:'nenhum',impacts:6,bottom:.7,railPt:6},
   ficha:{glass:.55,grunge:.55,arch:'redondo',archK:.78,gap:44,finial:true,railGap:7,ladderDown:.24,rung:'barras',rungSp:5.5,rungT:1.5,
-    spikesIn:'arco',spikesOut:'nenhum',spikeL:4.5,spikeB:2.2,spikeSp:9.5,div1:'linha',div2:'espinhos',titleGap:52,impacts:6,bottom:.7,railPt:6,finL:8,margin:11},
-  catedral:{glass:.4,grunge:.35,arch:'ogival',archK:.7,gap:0,finial:true,railGap:8,ladderDown:1,rung:'losango',rungSp:7,
-    spikesIn:'arco',spikesOut:'arco',spikeL:6,spikeB:2.4,spikeSp:8,div1:'dupla',div2:'nenhum',titleGap:60,impacts:4,bottom:.4,railPt:5},
-  carcere:{glass:.85,grunge:.85,arch:'redondo',archK:.95,gap:0,finial:true,railGap:9,ladderDown:1,rung:'cruz',rungSp:6,rungT:1.4,
-    spikesIn:'grade',spikesOut:'tudo',spikeL:5,spikeB:2,spikeSp:7,div1:'espinhos',div2:'nenhum',titleGap:0,impacts:8,bottom:1,railPt:7},
-  relicario:{glass:.3,grunge:.45,arch:'ogival',archK:1.1,gap:0,finial:true,railGap:5,ladderDown:.5,rung:'barras',rungSp:4,rungT:1,
-    spikesIn:'grade',spikesOut:'nenhum',spikeL:3.5,spikeB:1.6,spikeSp:6,div1:'espinhos',div2:'dupla',titleGap:40,impacts:3,bottom:.5,railPt:4},
+    spikesIn:'arco',spikesOut:'nenhum',spikeL:4.5,spikeB:2.2,spikeSp:9.5,div1:'linha',div2:'espinhos',titleGap:52,impacts:6,bottom:.7,railPt:6,finL:8,margin:11,topPad:15,layout:'unica'},
+  catedral:{glass:.4,grunge:.35,arch:'reto',gap:0,margin:14,railGap:8,ladderDown:1,rung:'losango',rungSp:7,
+    spikesIn:'nenhum',spikesOut:'tudo',spikeL:5,spikeB:2.4,spikeSp:8,div2:'nenhum',impacts:4,bottom:.4,railPt:5},
+  carcere:{glass:.85,grunge:.85,arch:'reto',gap:0,margin:12,railGap:9,ladderDown:1,rung:'cruz',rungSp:6,rungT:1.4,
+    spikesIn:'grade',spikesOut:'tudo',spikeL:5,spikeB:2,spikeSp:7,div2:'nenhum',impacts:8,bottom:1,railPt:7},
+  relicario:{glass:.3,grunge:.45,arch:'reto',gap:0,margin:12,railGap:5,ladderDown:.14,rung:'barras',rungSp:4,rungT:1,
+    spikesIn:'grade',spikesOut:'nenhum',spikeL:3.5,spikeB:1.6,spikeSp:6,div2:'espinhos',titleGap:0,impacts:3,bottom:.5,railPt:4},
   limpo:{glass:0,grunge:0}
 };
 const WORDS=['verbum','emunah','lacrimah','eden','spiritum','apogeu','silencio','zeit','inclemente','revelado','adjuracao','codice','kamia','vozes','reliquia','vazio','exorcismo','trinitum','sintonia','desapego'];
@@ -614,6 +624,10 @@ function labels(){
   $('glassV').textContent='estilhaço '+S.glass.toFixed(2);$('grungeV').textContent='grunge '+S.grunge.toFixed(2);
   bindings.forEach(([k,t,dec])=>{const el=$(k+'V');if(!el)return;el.textContent=(t==='pct'?S[k].toFixed(dec):Number(S[k]).toFixed(dec));});
   $('customSize').style.display=S.size==='custom'?'flex':'none';
+  const reto=S.arch==='reto';
+  ['archOnly','topPadWrap','div1Wrap'].forEach(id=>$(id).style.display=reto?'none':'block');
+  $('ladderLbl').textContent=reto?'Grade desce do topo':'Grade desce pelas laterais';
+  $('archNote').textContent=reto?'Moldura retangular nas margens, para as páginas do livro.':'Arco no topo, como na ficha de personagem.';
 }
 let raf=0;
 function render(){cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{
