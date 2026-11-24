@@ -158,6 +158,8 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
           <div><label>Largura</label><input type="number" id="mw" step="0.5" min="10"></div>
           <div><label>Altura</label><input type="number" id="mh" step="0.5" min="10"></div>
         </div>
+        <label>Forma</label>
+        <div class="seg" id="mform"><button data-v="organica">Orgânica</button><button data-v="reta">Pincelada reta</button></div>
         <div class="row">
           <div><label>Pincelada</label>
             <select id="mdir"><option value="auto">Automática</option><option value="h">Horizontal</option><option value="v">Vertical</option></select></div>
@@ -280,7 +282,7 @@ function orient(p,sign){return Math.sign(area(p))===sign?p:p.slice().reverse();}
    ============================================================ */
 const boxDir=m=>m.dir==='auto'?(m.w>=m.h?'h':'v'):m.dir;
 
-function buildMancha(m,S){
+function buildReta(m,S){
   const c=S.chaos,dg=S.deg||0,sp=S.spike,fib=S.fibers,dry=S.dry;
   const seed=S.seed+'#'+m.s;
   const dir=boxDir(m);
@@ -428,15 +430,20 @@ function buildMancha(m,S){
   fills.forEach(f=>out.push({parts:f.parts.map(p=>p.map(T)),c:f.c}));
   strokes.forEach(s=>out.push({p:s.p.map(T),w:s.w,c:s.c}));
 
-  // ---- degeneração no mundo: escorridos e sangue (a gravidade é a da página) ----
+  degWorld(m,S,seed,scale,dir==='h'?[insE,insS]:[insS,insE],dir==='h'?sideAmp:bandAmp,out);
+  return out;
+}
+
+/* degeneração no mundo: escorridos e sangue (a gravidade é a da página) */
+function degWorld(m,S,seed,scale,sideIns,lip,out,bottomAt){
+  const dg=S.deg||0;
   if(dg>0){
     const rd=RNG(seed,'escorre');
-    const sideIns=dir==='h'?[insE,insS]:[insS,insE];
     const x0=m.x+sideIns[0]+2,x1=m.x+m.w-sideIns[0]-2,yb=m.y+m.h-sideIns[1];
     const nD=Math.round(dg*(m.w/14)*(.6+dg))+(dg>.15?1:0);
     for(let k=0;k<nD;k++){
       const cx=lerp(x0,x1,rd()),w=(.7+rd()*rd()*4)*(.6+dg*.6)*scale,len=(3+rd()*rd()*55)*dg*(.4+rd()*.8)*(.6+scale*.4);
-      const y0=yb-3-(dir==='h'?sideAmp:bandAmp),blood=rd()<dg*dg*.85;const sway=(rd()-.5)*w*.8;const L2=[],R2=[];
+      const yAt=bottomAt?bottomAt(cx):yb;if(yAt==null)continue;const y0=yAt-3-lip,blood=rd()<dg*dg*.85;const sway=(rd()-.5)*w*.8;const L2=[],R2=[];
       for(let i=0;i<=14;i++){const t=i/14,y=y0+t*(len+3),hw=w/2*(1-.5*t)*(1+.15*Math.sin(t*9+k)),sx=cx+sway*t*t;L2.push([sx-hw,y]);R2.push([sx+hw,y]);}
       const rb=w*.55+.25,bx=cx+sway,by=y0+len+3;const bulb=[];
       for(let i=0;i<=12;i++){const a=Math.PI-i/12*Math.PI;bulb.push([bx+Math.cos(a)*rb,by+Math.sin(a)*rb*1.15]);}
@@ -450,13 +457,149 @@ function buildMancha(m,S){
         out.push({parts:[circlePts(x,y,rad,12)],c:'bl'});
         if(rad>.6&&rd()<.6){const tl=rad*(2+rd()*4);out.push({parts:[[[x+Math.cos(a+1.4)*rad*.6,y+Math.sin(a+1.4)*rad*.6],[x+Math.cos(a)*tl,y+Math.sin(a)*tl],[x+Math.cos(a-1.4)*rad*.6,y+Math.sin(a-1.4)*rad*.6]]],c:'bl'});}}}
   }
+}
+
+/* ============================================================
+   MANCHA ORGÂNICA
+   Várias passadas de pincel que se sobrepõem; cada passada
+   termina abrindo em cerdas que escapam em direções estranhas.
+   ============================================================ */
+function ribbon(C,W){ // centro + meia-largura (número ou [esq,dir]) -> polígono fechado
+  const Lf=[],Rt=[];
+  for(let i=0;i<C.length;i++){const a=C[Math.max(0,i-1)],b=C[Math.min(C.length-1,i+1)];let tx=b[0]-a[0],ty=b[1]-a[1];const l=Math.hypot(tx,ty)||1;tx/=l;ty/=l;
+    const w=Array.isArray(W[i])?W[i]:[W[i],W[i]];
+    Lf.push([C[i][0]-ty*w[0],C[i][1]+tx*w[0]]);Rt.push([C[i][0]+ty*w[1],C[i][1]-tx*w[1]]);}
+  const p=Lf.concat(Rt.reverse());p.push(p[0]);return p;
+}
+function buildOrganica(m,S){
+  const c=S.chaos,sp=S.spike,fib=S.fibers,dry=S.dry,dg=S.deg||0;
+  const seed=S.seed+'#'+m.s;const dir=boxDir(m);
+  const A=dir==='h'?m.w:m.h,B=dir==='h'?m.h:m.w;
+  const nz=makeNoise(RNG(seed,'onz'));const r=RNG(seed,'org');
+  const scale=clamp(Math.min(A,B)/70,.35,1.15);
+  const bw=clamp(B/(2.3+r()*1.3),5,55);                 // largura do pincel
+  const fl=lerp(5,36,sp)*(.75+c*.75)*scale;             // comprimento das cerdas abertas
+  const polys=[],tips=[],lines=[],dots=[],core=[];
+  let ns=0;
+
+  // cerdas: abrem a partir de uma seção do pincel (base, direção, meia-largura)
+  function bristles(base,ang,hw,len,kind){
+    const rb=RNG(seed,'cerda'+(ns++));
+    const k=Math.max(3,Math.round((hw/(1.6-dry*.7))*(.5+sp*.6)+rb()*3));
+    const cuts=[0];for(let j=0;j<k;j++)cuts.push(cuts[j]+.35+rb());const tot=cuts[k];
+    const over=lerp(1.4,1.1,dry);const fan=.08+.4*c;const nx=-Math.sin(ang),ny=Math.cos(ang);
+    for(let j=0;j<k;j++){
+      const s=((cuts[j]+cuts[j+1])/tot)-1,h=(cuts[j+1]-cuts[j])/tot*over;
+      let L=len*(.2+Math.pow(rb(),.7)*.8);if(rb()<.12+sp*.1)L*=1.5+rb();
+      if(rb()<dry*.35)L*=.35;                            // cerda que secou cedo
+      let d=s*fan+(rb()-.5)*(.12+.7*c);if(rb()<c*.22)d+=(rb()-.5)*2.2;   // direções estranhas
+      const kap=(rb()-.5)*(.015+.14*c)*(kind==='flick'?1.6:1);
+      let x=base[0]+nx*hw*s,y=base[1]+ny*hw*s,a=ang;const C=[],W=[];const n=Math.max(3,Math.round(L/.45));const w0=hw*h;const ph=rb()*50;
+      for(let i=0;i<=n;i++){const t=i/n;C.push([x,y]);W.push(w0*Math.pow(1-t,.8)*(1+.18*nz(t*4,ph))+.02);
+        a=ang+d*Math.min(1,t*2.5)+kap*t*L+nz(t*2+ph,3)*.15*c;x+=Math.cos(a)*L/n;y+=Math.sin(a)*L/n;}
+      polys.push(ribbon(C,W));tips.push([x,y,a]);
+    }
+  }
+  // uma passada: corpo cheio com bordas tremidas e as duas pontas abertas em cerdas
+  function pass(p0,p1,hw,bow,kind){
+    const len=Math.hypot(p1[0]-p0[0],p1[1]-p0[1]);if(len<2)return;
+    const ang=Math.atan2(p1[1]-p0[1],p1[0]-p0[0]),tx=Math.cos(ang),ty=Math.sin(ang),nx=-ty,ny=tx;const ph=r()*80;
+    const fE=fl*(kind==='flick'?.6:1)*(.55+r()*.7),fS=fl*(.15+r()*.35)*(kind==='flick'?.3:1);
+    const a0=Math.min(fS*.35,len*.2),a1=Math.max(a0+1,len-fE*.35);
+    const P=d=>{const t=d/len;const off=bow*Math.sin(Math.PI*t)+nz(t*2.2,ph)*hw*.5*c;return [p0[0]+tx*d+nx*off,p0[1]+ty*d+ny*off];};
+    const C=[],W=[];const n=Math.max(3,Math.round((a1-a0)/.5));
+    for(let i=0;i<=n;i++){const d=lerp(a0,a1,i/n);C.push(P(d));
+      const press=kind==='flick'?lerp(.55,1,Math.min(1,d/(len*.4))):1;
+      W.push([hw*press*(1+nz(d*.05,ph+3)*.12*(1+c)+nz(d*.5,ph+9)*.03),hw*press*(1+nz(d*.05,ph+7)*.12*(1+c)+nz(d*.5,ph+11)*.03)]);}
+    const rib=ribbon(C,W);polys.push(rib);if(kind==='main')core.push(rib);
+    // pelos curtos nas laterais
+    if(kind==='main'){const nh=Math.round((a1-a0)/6*(.3+sp+fib*.4));for(let h=0;h<nh;h++){const i=Math.floor(r()*C.length);const sd=r()<.5?1:-1;const w=W[i][sd>0?0:1];
+      const a=ang+(r()<.5?0:Math.PI)+sd*(.12+r()*.45)*(r()<.5?1:-1)*-1;const q=[C[i][0]+nx*w*sd*.9,C[i][1]+ny*w*sd*.9];const L=(1+r()*r()*6)*(.5+sp)*(.7+c*.6)*scale;
+      const n2=6,CC=[],WW=[];let x=q[0],y=q[1],aa=a+sd*.0;for(let j=0;j<=n2;j++){CC.push([x,y]);WW.push((.15+.35*r()*0+.25)*(1-j/n2)*(.6+scale*.4)+.02);aa+=(r()-.5)*.15*(1+c*2);x+=Math.cos(aa)*L/n2;y+=Math.sin(aa)*L/n2;}
+      polys.push(ribbon(CC,WW));}}
+    const dir2=(q,s)=>{const a=P(Math.max(0,q-.5)),b=P(Math.min(len,q+.5));return Math.atan2(b[1]-a[1],b[0]-a[0])+(s<0?Math.PI:0);};
+    const wEnd=W[W.length-1],wSt=W[0];
+    bristles(P(a1-.6),dir2(a1,1),(wEnd[0]+wEnd[1])/2,fE*.95,kind);
+    if(kind!=='flick')bristles(P(a0+.6),dir2(a0,-1),(wSt[0]+wSt[1])/2,fS+fl*.25,kind);
+  }
+
+  // passadas principais, em faixas ao longo da largura do pincel
+  const rows=Math.max(1,Math.ceil((B-bw*.35)/(bw*.55)));
+  for(let i=0;i<rows;i++){
+    const vc=rows===1?B/2:bw*.42+(B-bw*.84)*i/(rows-1)+(r()-.5)*bw*.18;
+    const hw=bw*(.5+r()*.16);
+    const e0=fl*(r()-.35)*.6,e1=fl*(r()-.35)*.6;
+    let a=[-e0,vc+(r()-.5)*bw*.25],b=[A+e1,vc+(r()-.5)*bw*(.25+c*.6)];
+    const tilt=(r()-.5)*(.06+.5*c);const mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2,co=Math.cos(tilt),si=Math.sin(tilt);
+    const R=q=>[mx+(q[0]-mx)*co-(q[1]-my)*si,my+(q[0]-mx)*si+(q[1]-my)*co];a=R(a);b=R(b);
+    if(r()<.5)[a,b]=[b,a];
+    pass(a,b,hw,(r()-.5)*bw*(.15+.6*c),'main');
+  }
+  // passadas cruzadas (o pincel volta torto)
+  const nX=Math.round(c*c*3*(A*B)/(140*140)+(r()<c?1:0));
+  for(let k=0;k<nX;k++){const ang=(r()<.5?1:-1)*(.35+r()*.9);const L=A*(.4+r()*.5);const cx=lerp(A*.25,A*.75,r()),cy=lerp(B*.25,B*.75,r());
+    const a=[cx-Math.cos(ang)*L/2,cy-Math.sin(ang)*L/2],b=[cx+Math.cos(ang)*L/2,cy+Math.sin(ang)*L/2];pass(r()<.5?a:b,r()<.5?b:a,bw*(.25+r()*.25),(r()-.5)*bw*.6,'main');}
+  // golpes curtos que escapam pelas bordas em direções estranhas
+  const nK=Math.round((.5+c*1.6)*(.25+sp)*(A+B)/45);
+  for(let k=0;k<nK;k++){const side=Math.floor(r()*4);let x,y,out;
+    if(side===0){x=r()*A;y=bw*.2;out=-Math.PI/2;}else if(side===1){x=A-bw*.2;y=r()*B;out=0;}else if(side===2){x=r()*A;y=B-bw*.2;out=Math.PI/2;}else{x=bw*.2;y=r()*B;out=Math.PI;}
+    const ang=out+(r()-.5)*(1.2+c*1.4);const L=fl*(.5+r()*1.4)+bw*.3;const st=[x-Math.cos(ang)*bw*.35,y-Math.sin(ang)*bw*.35];
+    pass(st,[st[0]+Math.cos(ang)*L,st[1]+Math.sin(ang)*L],bw*(.08+r()*.18),(r()-.5)*L*.3,'flick');}
+
+  // fibras que continuam das cerdas
+  const rf=RNG(seed,'ofibra');const nF=Math.round(fib*(A+B)*.16*(.45+c));
+  for(let k=0;k<nF&&tips.length;k++){
+    const t=tips[Math.floor(rf()*tips.length)];let[x,y,a]=t;x-=Math.cos(a)*(.5+rf()*2);y-=Math.sin(a)*(.5+rf()*2);
+    const len=(3+rf()*rf()*24)*(.55+c*.8)*scale*(.6+fib*.6);const curly=rf()<c*.35+fib*.08;const spin=(rf()<.5?-1:1)*(.22+rf()*.3);const k2=.03+c*.25;const nn=rf()*99;
+    const n=Math.max(3,Math.round(len/.45));const pts=[[x,y]];
+    for(let i=0;i<n;i++){a+=curly?spin*(.6+.8*nz(i*.2,nn)):nz(i*.15,nn)*k2;x+=Math.cos(a)*.45;y+=Math.sin(a)*.45;pts.push([x,y]);}
+    const w=(.09+rf()*.26)*(.7+c*.4);lines.push({p:pts,w,c:'fg'});
+    if(dg>.6){for(let i=4;i<pts.length-1;i+=Math.max(3,Math.round(6-dg*3))){const q=pts[i],qp=pts[i-1];const ta=Math.atan2(q[1]-qp[1],q[0]-qp[0]);const s=i%2?1:-1;const bl=(.5+rf()*1.1)*g01(dg,.6,1);
+      lines.push({p:[q,[q[0]+Math.cos(ta+s*2.3)*bl,q[1]+Math.sin(ta+s*2.3)*bl]],w:w*1.1,c:'fg'});}}
+  }
+  // respingos além das pontas
+  const rs=RNG(seed,'orespingo');const nS=Math.round(c*c*(A+B)*.3*(.4+sp));
+  for(let k=0;k<nS&&tips.length;k++){const t=tips[Math.floor(rs()*tips.length)];const d=1+rs()*rs()*fl*.8;const a=t[2]+(rs()-.5)*.8;
+    dots.push(circlePts(t[0]+Math.cos(a)*d,t[1]+Math.sin(a)*d,.12+rs()*rs()*.8,10));}
+
+  // encaixe na caixa (fiapos para fora / metade / dentro)
+  // o corpo (passadas principais) preenche a caixa; as cerdas escapam, cabem pela metade ou cabem inteiras
+  const bbox=L=>{let a=1e9,b=1e9,c2=-1e9,d=-1e9;L.forEach(p=>p.forEach(([x,y])=>{if(x<a)a=x;if(y<b)b=y;if(x>c2)c2=x;if(y>d)d=y;}));return [a,b,c2,d];};
+  const[x0,y0,x1,y1]=bbox(polys),[cx0,cy0,cx1,cy1]=bbox(core);
+  const f=S.fit==='fora'?0:S.fit==='dentro'?1:.5;
+  const ksx=A/(cx1-cx0),ksy=B/(cy1-cy0);
+  const tx0=lerp((x0-cx0)*ksx,0,f),tx1=lerp(A+(x1-cx1)*ksx,A,f),ty0=lerp((y0-cy0)*ksy,0,f),ty1=lerp(B+(y1-cy1)*ksy,B,f);
+  const sx=(tx1-tx0)/(x1-x0),sy=(ty1-ty0)/(y1-y0);
+  const T=([u,v])=>{u=tx0+(u-x0)*sx;v=ty0+(v-y0)*sy;return dir==='h'?[m.x+u,m.y+v]:[m.x+B-v,m.y+u];};
+  const sign=-1;
+  const out=[{parts:polys.map(p=>orient(p.map(T),sign)),c:'fg'}];
+  dots.forEach(p=>out.push({parts:[p.map(T)],c:'fg'}));
+  lines.forEach(s=>out.push({p:s.p.map(T),w:s.w,c:s.c}));
+
+  // rasgos (degeneração): recortados por máscara
+  if(dg>.42){const rr=RNG(seed,'orasgo');const nT=Math.round(g01(dg,.42,1)*(1+A*B/5000)*2.2);const pad=bw*.7;
+    for(let k=0;k<nT;k++){const rad=(2+rr()*7)*scale*(.6+dg*.6);if(A-2*(pad+rad)<0||B-2*(pad+rad)<0)break;
+      const cx=lerp(pad+rad,A-pad-rad,rr()),cy=lerp(pad+rad,B-pad-rad,rr());const N=40,h=[],ph=rr()*TAU,el=.5+rr()*.8;
+      for(let i=0;i<N;i++){const a=i/N*TAU;const j=(1+.35*nz(Math.cos(a)*1.3+k*9,Math.sin(a)*1.3)+(i%3===0?(rr()-.3)*.5:0));h.push([cx+Math.cos(a+ph)*rad*j*1.4,cy+Math.sin(a+ph)*rad*j*el]);}
+      h.push(h[0]);out.push({parts:[h.map(T)],c:'hole'});
+      if(dg>.62){const nt=1+Math.floor(rr()*3);for(let t=0;t<nt;t++){const a=rr()*TAU,b=a+Math.PI+(rr()-.5)*.8;
+        const q0=[cx+Math.cos(a+ph)*rad*1.5,cy+Math.sin(a+ph)*rad*el*1.1],q1=[cx+Math.cos(b+ph)*rad*1.5,cy+Math.sin(b+ph)*rad*el*1.1];
+        const mid=[(q0[0]+q1[0])/2+(rr()-.5)*rad*.5,(q0[1]+q1[1])/2+rad*.3*rr()];const pts=[];
+        for(let i=0;i<=12;i++){const u=i/12;pts.push([(1-u)*(1-u)*q0[0]+2*(1-u)*u*mid[0]+u*u*q1[0],(1-u)*(1-u)*q0[1]+2*(1-u)*u*mid[1]+u*u*q1[1]]);}
+        out.push({p:pts.map(T),w:.15+rr()*.35,c:'fg',nomask:true});}}}}
+
+  // fundo do corpo em cada x, para os escorridos nascerem da tinta
+  const coreW=core.map(p=>p.map(T));
+  const bottomAt=x=>{let b=null;coreW.forEach(p=>p.forEach(([px,py])=>{if(Math.abs(px-x)<1.2&&(b==null||py>b))b=py;}));return b;};
+  degWorld(m,S,seed,scale,[bw*.4,0],0,out,bottomAt);
   return out;
 }
+const buildMancha=(m,S)=>(m.form||'organica')==='reta'?buildReta(m,S):buildOrganica(m,S);
 
 /* cache por mancha: só refaz a que mudou */
 const CACHE=new Map();
 function manchaShapes(m,S){
-  const k=JSON.stringify([m.x,m.y,m.w,m.h,m.dir,m.s,S.seed,S.chaos,S.deg,S.spike,S.fibers,S.dry,S.fit]);
+  const k=JSON.stringify([m.x,m.y,m.w,m.h,m.dir,m.form,m.s,S.seed,S.chaos,S.deg,S.spike,S.fibers,S.dry,S.fit]);
   let v=CACHE.get(k);if(!v){v=buildMancha(m,S);CACHE.set(k,v);if(CACHE.size>80)CACHE.delete(CACHE.keys().next().value);}
   return v;
 }
@@ -477,9 +620,22 @@ function shapesSVG(shapes,S){
   return runs.map(r=>{if(r.k[0]==='F')return `<path d="${r.d.join('')}" fill="${COL[r.k.slice(1)]}"/>`;
     const[c,w]=r.k.slice(1).split('|');return `<path d="${r.d.join('')}" fill="none" stroke="${COL[c]}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;}).join('\n');
 }
+function groupSVG(shapes,S,id){
+  const holes=shapes.filter(s=>s.c==='hole'),nm=shapes.filter(s=>s.nomask),main=shapes.filter(s=>s.c!=='hole'&&!s.nomask);
+  if(!holes.length)return `<g id="${id}">\n${shapesSVG(main,S)}\n</g>`;
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;main.forEach(s=>(s.parts||[s.p]).forEach(p=>p.forEach(([x,y])=>{if(x<x0)x0=x;if(y<y0)y0=y;if(x>x1)x1=x;if(y>y1)y1=y;})));
+  x0-=5;y0-=5;x1+=5;y1+=5;
+  return `<g id="${id}">
+<mask id="${id}-rasgos" maskUnits="userSpaceOnUse" x="${f2(x0)}" y="${f2(y0)}" width="${f2(x1-x0)}" height="${f2(y1-y0)}"><rect x="${f2(x0)}" y="${f2(y0)}" width="${f2(x1-x0)}" height="${f2(y1-y0)}" fill="#fff"/><path d="${holes.map(h=>h.parts.map(p=>pathD(p)+'Z').join('')).join('')}" fill="#000"/></mask>
+<g mask="url(#${id}-rasgos)">
+${shapesSVG(main,S)}
+</g>
+${shapesSVG(nm,S)}
+</g>`;
+}
 function toSVG(S,opts){
   opts=opts||{};const G=pageInfo(S);
-  const groups=S.M.map((m,i)=>`<g id="mancha-${i+1}">\n${shapesSVG(manchaShapes(m,S),S)}\n</g>`).join('\n');
+  const groups=S.M.map((m,i)=>groupSVG(manchaShapes(m,S),S,'mancha-'+(i+1))).join('\n');
   const bg=opts.noBg?'':`<rect width="${f2(G.W)}" height="${f2(G.H)}" fill="${S.bg}"/>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${f2(G.W)}mm" height="${f2(G.H)}mm" viewBox="0 0 ${f2(G.W)} ${f2(G.H)}">
 <title>Entropia · Manchas — ${S.seed} — entropia ${S.chaos.toFixed(2)} — degeneração ${(S.deg||0).toFixed(2)}</title>
@@ -498,9 +654,7 @@ function oneSVG(S,i,noBg){
   return {w,h,svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${f2(w)}mm" height="${f2(h)}mm" viewBox="${f2(x0)} ${f2(y0)} ${f2(w)} ${f2(h)}">
 <title>Entropia · Mancha ${i+1} — ${S.seed}</title>
 ${bg}
-<g id="mancha-${i+1}">
-${shapesSVG(sh,S)}
-</g>
+${groupSVG(sh,S,'mancha-'+(i+1))}
 </svg>`};
 }
 
@@ -513,7 +667,7 @@ const PALS={
 };
 const DEF={seed:'verbum',chaos:.25,deg:0,spike:.55,fibers:.45,dry:.3,fit:'metade',bleedSizes:false,layout:'dupla',size:'210x297',pw:210,ph:297,margin:15,guides:true,
   bg:'#FFFFFF',fg:'#0A0A0A',bl:'#000000',transparent:false,dpi:300,grain:true,
-  M:[{x:15,y:15,w:90,h:267,dir:'auto',s:1},{x:225,y:15,w:180,h:133.5,dir:'auto',s:2}],sel:0};
+  M:[{x:15,y:15,w:90,h:267,dir:'auto',form:'organica',s:1},{x:225,y:15,w:180,h:133.5,dir:'auto',form:'organica',s:2}],sel:0};
 const PRESETS={
   pincel:{chaos:.25,deg:0,spike:.55,fibers:.45,dry:.3},
   seco:{chaos:.25,deg:0,spike:.55,fibers:.65,dry:.85},
@@ -548,7 +702,7 @@ function baseBox(spread,c){
 function applySize(k){
   const z=SIZES.find(q=>q.k===k);if(!z)return;
   if(z.spread&&S.layout!=='dupla'){S.layout='dupla';}
-  let m=S.M[S.sel];if(!m){m={x:0,y:0,w:10,h:10,dir:'auto',s:nextSalt()};S.M.push(m);S.sel=S.M.length-1;}
+  let m=S.M[S.sel];if(!m){m={x:0,y:0,w:10,h:10,dir:'auto',form:'organica',s:nextSalt()};S.M.push(m);S.sel=S.M.length-1;}
   const c=[m.x+m.w/2,m.y+m.h/2];const[x,y,w,h]=z.f(baseBox(z.spread,c),c);
   Object.assign(m,{x:r2(x),y:r2(y),w:r2(w),h:r2(h)});m.size=k;
 }
@@ -578,6 +732,7 @@ function selUI(){
   const m=S.M[S.sel];$('selBox').classList.toggle('off',!m);$('mDup').disabled=$('mDel').disabled=!m;$('expOneSvg').disabled=$('expOnePng').disabled=!m;
   if(m&&document.activeElement&&!['mx','my','mw','mh'].includes(document.activeElement.id)){$('mx').value=r2(m.x);$('my').value=r2(m.y);$('mw').value=r2(m.w);$('mh').value=r2(m.h);}
   if(m)$('mdir').value=m.dir;
+  [...$('mform').children].forEach(b=>b.classList.toggle('on',!!m&&(m.form||'organica')===b.dataset.v));
   document.querySelectorAll('[data-size]').forEach(b=>{const z=SIZES.find(q=>q.k===b.dataset.size);b.title=(z.spread&&S.layout!=='dupla'?'Muda para página dupla. ':'')+(z.k==='sv'?'Metade da largura do spread, centrada sobre a lombada.':'');});
 }
 function labels(){
@@ -602,7 +757,7 @@ function uiSVG(){
     g+=`<rect x="${m.x}" y="${m.y}" width="${m.w}" height="${m.h}" fill="none" stroke="${on?'#D9442B':'#3aa0ff'}" stroke-width="${(on?1.6:1)*k}" stroke-dasharray="${5*k} ${3*k}" stroke-opacity="${on?1:.6}"/>`;
     g+=`<text x="${m.x+2*k*2}" y="${m.y+11*k}" font-family="Oswald,sans-serif" font-size="${11*k}" fill="${on?'#D9442B':'#3aa0ff'}" stroke="${S.bg}" stroke-width="${2.5*k}" paint-order="stroke">${i+1}</text>`;});
   const m=S.M[S.sel];
-  if(m){const hs=9*k;handles(m).forEach(([x,y])=>{g+=`<rect x="${x-hs/2}" y="${y-hs/2}" width="${hs}" height="${hs}" fill="#fff" stroke="#D9442B" stroke-width="${1.4*k}"/>`;});
+  if(m){const hs=11*k;handles(m).forEach(([x,y])=>{g+=`<rect x="${x-hs/2}" y="${y-hs/2}" width="${hs}" height="${hs}" fill="#fff" stroke="#D9442B" stroke-width="${1.4*k}"/>`;});
     g+=`<text x="${m.x+m.w/2}" y="${m.y+m.h+16*k}" text-anchor="middle" font-family="Oswald,sans-serif" font-size="${10*k}" fill="#D9442B" stroke="${S.bg}" stroke-width="${2.5*k}" paint-order="stroke">${f1(m.w)} × ${f1(m.h)} mm</text>`;}
   snapLines.forEach(([ax,v])=>{g+=ax==='x'?`<line x1="${v}" y1="0" x2="${v}" y2="${S.ph}" stroke="#ff2e88" stroke-width="${k}"/>`:`<line x1="0" y1="${v}" x2="${pageInfo(S).W}" y2="${v}" stroke="#ff2e88" stroke-width="${k}"/>`;});
   return g;
@@ -621,9 +776,19 @@ function render(){cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{
 /* ---------- arrastar e redimensionar ---------- */
 function toMM(ev){const sv=$('view').querySelector('svg');const r=sv.getBoundingClientRect();const G=pageInfo(S);return [(ev.clientX-r.left)/r.width*G.W,(ev.clientY-r.top)/r.height*G.H];}
 function hitTest(p){
-  const k=mmPerPx(),m=S.M[S.sel];
-  if(m){const hs=8*k;for(const[x,y,id]of handles(m))if(Math.abs(p[0]-x)<hs&&Math.abs(p[1]-y)<hs)return {i:S.sel,h:id};}
-  for(let i=S.M.length-1;i>=0;i--){const q=S.M[i];const pad=3*k;if(p[0]>q.x-pad&&p[0]<q.x+q.w+pad&&p[1]>q.y-pad&&p[1]<q.y+q.h+pad)return {i,h:'move'};}
+  // borda ou canto da caixa = redimensionar; miolo = mover. A selecionada tem prioridade.
+  const k=mmPerPx(),E=9*k,E2=E*2;
+  const order=[];if(S.M[S.sel])order.push(S.sel);for(let i=S.M.length-1;i>=0;i--)if(i!==S.sel)order.push(i);
+  for(const i of order){const q=S.M[i];
+    if(p[0]<q.x-E||p[0]>q.x+q.w+E||p[1]<q.y-E||p[1]>q.y+q.h+E)continue;
+    const dl=Math.abs(p[0]-q.x),dr=Math.abs(p[0]-q.x-q.w),dt=Math.abs(p[1]-q.y),db=Math.abs(p[1]-q.y-q.h);
+    const l=dl<E,r=dr<E,t=dt<E,b=db<E;
+    let v=t?'n':b?'s':'',h=l?'w':r?'e':'';
+    if(v&&!h)h=dl<E2?'w':dr<E2?'e':'';
+    if(h&&!v)v=dt<E2?'n':db<E2?'s':'';
+    if(v||h)return {i,h:v+h};
+    return {i,h:'move'};
+  }
   return null;
 }
 const CUR={nw:'nwse-resize',se:'nwse-resize',ne:'nesw-resize',sw:'nesw-resize',n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize',move:'move'};
@@ -694,12 +859,13 @@ $('sizes').addEventListener('click',e=>{const b=e.target.closest('[data-size]');
 $('mlist').addEventListener('click',e=>{const b=e.target.closest('[data-m]');if(!b)return;S.sel=+b.dataset.m;render();});
 $('mAdd').addEventListener('click',()=>{
   const ox=(S.layout==='dupla'&&S.M.length%2===1)?S.pw:0,mg=S.margin;
-  S.M.push({x:ox+mg,y:mg,w:r2((S.pw-2*mg)/2),h:r2(S.ph-2*mg),dir:'auto',s:nextSalt()});S.sel=S.M.length-1;render();});
+  S.M.push({x:ox+mg,y:mg,w:r2((S.pw-2*mg)/2),h:r2(S.ph-2*mg),dir:'auto',form:'organica',s:nextSalt()});S.sel=S.M.length-1;render();});
 function dup(){const m=S.M[S.sel];if(!m)return;S.M.push(Object.assign({},m,{x:r2(m.x+8),y:r2(m.y+8),s:nextSalt()}));S.sel=S.M.length-1;render();}
 $('mDup').addEventListener('click',dup);
 $('mDel').addEventListener('click',()=>{if(!S.M[S.sel])return;S.M.splice(S.sel,1);S.sel=Math.min(S.sel,S.M.length-1);render();});
 $('mReroll').addEventListener('click',()=>{const m=S.M[S.sel];if(!m)return;m.s=nextSalt();render();});
 [['mx','x'],['my','y'],['mw','w'],['mh','h']].forEach(([id,k])=>$(id).addEventListener('input',e=>{const m=S.M[S.sel];const v=parseFloat(e.target.value);if(!m||!isFinite(v))return;if((k==='w'||k==='h')&&v<10)return;m[k]=v;render();}));
+[...$('mform').children].forEach(b=>b.addEventListener('click',()=>{const m=S.M[S.sel];if(!m)return;m.form=b.dataset.v;render();}));
 $('mdir').addEventListener('change',e=>{const m=S.M[S.sel];if(!m)return;m.dir=e.target.value;render();});
 
 /* ---------- exportar ---------- */
