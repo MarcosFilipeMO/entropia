@@ -102,6 +102,8 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
         <div class="ends"><b>Puro</b><i>Degenerado</i></div>
         <input type="range" id="deg" min="0" max="100" value="0">
         <div id="dval">degeneração 0.00</div>
+        <label style="color:#e8b4ae">Alcance da sujeira: <span id="reachV"></span> mm</label>
+        <input type="range" id="reach" min="1" max="30" step=".5" value="6" style="accent-color:#9B1B1B">
       </div>
       <div class="box">
         <div class="ends"><b>Ponta lisa</b><i>Navalha</i></div>
@@ -117,6 +119,11 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
         <div class="ends"><b>Uma passada</b><i>Muitas pinceladas</i></div>
         <input type="range" id="strokes" min="0" max="100" value="50">
         <div class="val" id="strokesV"></div>
+      </div>
+      <div class="box">
+        <div class="ends"><b>Pincel chato</b><i>Redondo</i></div>
+        <input type="range" id="round" min="0" max="100" value="35">
+        <div class="val" id="roundV"></div>
       </div>
       <div class="box">
         <div class="ends"><b>Encharcado</b><i>Pincel seco</i></div>
@@ -336,7 +343,7 @@ function buildReta(m,S){
     for(let i=0;i<=n;i++){const uu=u0+(u1-u0)*i/n;let best=0,bt=0;
       while(p0<hairs.length&&hairs[p0][0]<uu-1)p0++;
       for(let k=p0;k<hairs.length&&hairs[k][0]<=uu+1;k++){const[h0,l,w,t]=hairs[k];const d=Math.abs(uu-h0)/(w/2);if(d<1){const q=l*Math.pow(1-d,1.4);if(q>best){best=q;bt=t;}}}
-      const wob=nz(uu*.014+sd*13,8.8)*sideAmp*1.3+nz(uu*.06+sd*31,2.2)*sideAmp*.8+nz(uu*.45+sd*7,5.5)*sideAmp*.35;
+      const wob=nz(uu*.011+sd*5,4.4)*(S.round==null?.35:S.round)*Math.min(B,A)*.05+nz(uu*.014+sd*13,8.8)*sideAmp*1.3+nz(uu*.06+sd*31,2.2)*sideAmp*.8+nz(uu*.45+sd*7,5.5)*sideAmp*.35;
       pts.push([uu,wob+best,best*bt]);}
     return pts;
   }
@@ -442,41 +449,40 @@ function inkDistance(shapes,pad){
 let DRAFT=false; // enquanto arrasta, pula o grunge para ficar leve
 function grungeAround(m,S,seed,out){
   const gr=S.deg||0;if(gr<=0||DRAFT)return;
-  const Bw=2.5+gr*11,pad=Bw*4;
-  const I=inkDistance(out,pad);const x0=I.x0,y0=I.y0,x1=I.x1,y1=I.y1;
-  const sd=(x,y)=>{const d=I.at(x,y);return d>0?d:-1;};
-  // embaixo a tinta pesa mais (gravidade)
-  const edge=(x,y,k)=>{const d=I.at(x,y);if(d<=0)return 1;const bias=1+.6*clamp((y-I.cy)/I.hh,0,1.5);return Math.exp(-d/(Bw*bias*k));};
+  const reach=Math.max(.5,S.reach==null?6:S.reach);
+  const I=inkDistance(out,reach+2);const x0=I.x0,y0=I.y0,x1=I.x1,y1=I.y1;
+  // quanto mais degenerado, mais da borda é tomada (manchas de cobertura ao longo do contorno)
+  const nC=makeNoise(RNG(seed,'cobre'));
+  const cov=(x,y)=>clamp((nC(x*.03,y*.03)+.15-(1-gr*1.6))/.35,0,1);
+  // nunca passa do alcance; embaixo vai até o fim do alcance, em cima um pouco menos
+  const edge=(x,y)=>{const d=I.at(x,y);if(d<=0)return 0;const eff=reach*(.75+.25*clamp((y-I.cy)/I.hh+.5,0,1));if(d>eff)return 0;return Math.pow(1-d/eff,1.4)*cov(x,y);};
   const dots=[],C=p=>out.push({parts:[p],c:'fg'});
   const nA=makeNoise(RNG(seed,'tintaA')),nB=makeNoise(RNG(seed,'tintaB'));
   // 1. massas de tinta grudadas na borda
-  const cell=1.05;const rj=RNG(seed,'jit');
+  const cell=Math.min(1.05,Math.max(.5,reach/5));const rj=RNG(seed,'jit');
   for(let y=y0;y<y1;y+=cell)for(let x=x0;x<x1;x+=cell){
-    const jx=rj(),jy=rj(),js=rj();if(sd(x,y)<0)continue;
-    const e=edge(x,y,1);if(e<.06)continue;
-    const f=nA(x*.045,y*.045)*.7+nB(x*.3,y*.3)*.45;const sc=e*(.3+gr*.55)+f*.95-.56;if(sc<=0)continue;
+    const jx=rj(),jy=rj(),js=rj();const e=edge(x,y);if(e<.03)continue;
+    const f=nA(x*.045,y*.045)*.7+nB(x*.3,y*.3)*.45;const sc=e*(.45+gr*.6)+f*.8-.5;if(sc<=0)continue;
     dots.push([x+(jx-.5)*cell*.5,y+(jy-.5)*cell*.5,cell*(.3+Math.min(1,sc*2.5)*.6)*(.7+js*.5)]);
   }
-  // 2. respingos com gotículas
-  const rs=RNG(seed,'resp');const per=2*(m.w+m.h);const nR=Math.round(per/40*gr*1.2)+2;
-  for(let i=0;i<nR;i++){const u=rs(),v=rs(),sz=rs(),dir=rs()*TAU;const band=6+gr*24;const o=Math.pow(rs(),1.6)*band;let x,y;
-    const X0=m.x,Y0=m.y,X1=m.x+m.w,Y1=m.y+m.h;
-    if(u<.25){x=lerp(X0,X1,v);y=Y0-o;}else if(u<.55){x=lerp(X0,X1,v);y=Y1+o*1.3;}else if(u<.78){x=X0-o;y=lerp(Y0,Y1,v);}else{x=X1+o;y=lerp(Y0,Y1,v);}
-    if(sd(x,y)<0)continue;
-    const Rr=.7+Math.pow(sz,2)*(2+gr*5);const nb=makeNoise(RNG(seed,'rb'+i));const blob=[];
-    for(let k=0;k<=30;k++){const a=k/30*TAU;const q=Rr*(1+.6*nb(Math.cos(a)*1.5+i,Math.sin(a)*1.5));blob.push([x+q*Math.cos(a),y+q*Math.sin(a)]);}
+  const pick=(rr,maxD)=>{for(let t=0;t<60;t++){const x=lerp(x0,x1,rr()),y=lerp(y0,y1,rr());const d=I.at(x,y);if(d>0&&d<maxD&&cov(x,y)>.2)return [x,y];}return null;};
+  // 2. respingos com gotículas, dentro do alcance
+  const rs=RNG(seed,'resp');const nR=Math.round(2*(m.w+m.h)/35*gr)+1;const k2=Math.min(1,reach/6);
+  for(let i=0;i<nR;i++){const q=pick(rs,reach*.7);const sz=rs(),dir=rs()*TAU;if(!q)continue;const[x,y]=q;
+    const Rr=(.5+Math.pow(sz,2)*(1+gr*3))*k2;const nb=makeNoise(RNG(seed,'rb'+i));const blob=[];
+    for(let k=0;k<=30;k++){const a=k/30*TAU;const qq=Rr*(1+.6*nb(Math.cos(a)*1.5+i,Math.sin(a)*1.5));blob.push([x+qq*Math.cos(a),y+qq*Math.sin(a)]);}
     C(blob);
-    const nd=Math.round(2+gr*7);for(let k=0;k<nd;k++){const d=Rr*(1.3+rs()*3.5);const an=dir+(rs()-.5)*2.6;dots.push([x+d*Math.cos(an),y+d*Math.sin(an),.12+rs()*Rr*.22]);}
+    const nd=Math.round(2+gr*6);for(let k=0;k<nd;k++){const d=Rr*(1.3+rs()*3);const an=dir+(rs()-.5)*2.6;const px=x+d*Math.cos(an),py=y+d*Math.sin(an);if(I.at(px,py)<=reach)dots.push([px,py,.1+rs()*Rr*.22]);}
   }
   // 3. lascas pequenas
   const rk=RNG(seed,'lasca');const nL=Math.round((x1-x0)*(y1-y0)*.03);
   for(let i=0;i<nL;i++){const t=rk(),x=lerp(x0,x1,rk()),y=lerp(y0,y1,rk()),l=rk(),wr=rk(),a=rk()*TAU;
-    if(rk()>=gr)continue;if(sd(x,y)<0||t>.12+.88*edge(x,y,3))continue;
-    const len=(.15+l*l*1.4)*(.6+gr*.8),q=[];for(let k=0;k<=8;k++){const b=k/8*TAU;const uu=len*Math.cos(b),vv=len*(.18+wr*.6)*Math.sin(b);q.push([x+uu*Math.cos(a)-vv*Math.sin(a),y+uu*Math.sin(a)+vv*Math.cos(a)]);}C(q);}
+    if(rk()>=gr)continue;const e=edge(x,y);if(e<=0||t>e)continue;
+    const len=(.15+l*l*1.4)*(.6+gr*.8)*k2,q=[];for(let k=0;k<=8;k++){const b=k/8*TAU;const uu=len*Math.cos(b),vv=len*(.18+wr*.6)*Math.sin(b);q.push([x+uu*Math.cos(a)-vv*Math.sin(a),y+uu*Math.sin(a)+vv*Math.cos(a)]);}C(q);}
   // 4. grão fino
   const rg=RNG(seed,'grao');const N=Math.round((x1-x0)*(y1-y0)*.35);
   for(let i=0;i<N;i++){const x=lerp(x0,x1,rg()),y=lerp(y0,y1,rg()),t=rg(),z=rg();
-    if(sd(x,y)<0)continue;if(t>=gr*(.03+.6*edge(x,y,2.5)))continue;dots.push([x,y,.05+z*z*.16]);}
+    const e=edge(x,y);if(e<=0||t>=gr*.65*e)continue;dots.push([x,y,.05+z*z*.16]);}
   if(dots.length)out.push({dots,c:'fg'});
 }
 /* degeneração no mundo: escorridos e sangue (a gravidade é a da página) */
@@ -498,7 +504,7 @@ function degWorld(m,S,seed,scale,sideIns,lip,out,bottomAt){
     }
     // sangue respingado
     if(dg>.3){const nB=Math.round(g01(dg,.3,1)*(m.w+m.h)*.12);
-      for(let k=0;k<nB;k++){const ex=rd()<.5;const x=ex?(rd()<.5?m.x-rd()*8:m.x+m.w+rd()*8):lerp(m.x,m.x+m.w,rd()),y=ex?lerp(m.y,m.y+m.h,rd()):(rd()<.5?m.y-rd()*8:m.y+m.h+rd()*10);
+      for(let k=0;k<nB;k++){const ex=rd()<.5;const rch=S.reach==null?6:S.reach;const x=ex?(rd()<.5?m.x-rd()*rch:m.x+m.w+rd()*rch):lerp(m.x,m.x+m.w,rd()),y=ex?lerp(m.y,m.y+m.h,rd()):(rd()<.5?m.y-rd()*rch:m.y+m.h+rd()*rch);
         const rad=.2+rd()*rd()*1.8;const a=rd()*TAU;
         out.push({parts:[circlePts(x,y,rad,12)],c:'bl'});
         if(rad>.6&&rd()<.6){const tl=rad*(2+rd()*4);out.push({parts:[[[x+Math.cos(a+1.4)*rad*.6,y+Math.sin(a+1.4)*rad*.6],[x+Math.cos(a)*tl,y+Math.sin(a)*tl],[x+Math.cos(a-1.4)*rad*.6,y+Math.sin(a-1.4)*rad*.6]]],c:'bl'});}}}
@@ -552,14 +558,21 @@ function buildOrganica(m,S){
   function pass(p0,p1,hw,bow,kind){
     const len=Math.hypot(p1[0]-p0[0],p1[1]-p0[1]);if(len<2)return;
     const ang=Math.atan2(p1[1]-p0[1],p1[0]-p0[0]),tx=Math.cos(ang),ty=Math.sin(ang),nx=-ty,ny=tx;const ph=r()*80;
-    const fE=fl*(kind==='flick'?.6:1)*(.55+r()*.7),fS=fl*(.15+r()*.35)*(kind==='flick'?.3:1);
+    const rnd=kind==='flick'?0:(S.round==null?.35:S.round);bow+=(r()-.5)*hw*1.4*rnd;
+    const fE=fl*(kind==='flick'?.6:1)*(.55+r()*.7),fS=fl*(.15+r()*.35)*(kind==='flick'?.3:1)*(1-rnd*.8);
     const a0=Math.min(fS*.35,len*.2),a1=Math.max(a0+1,len-fE*.35);
     const P=d=>{const t=d/len;const off=bow*Math.sin(Math.PI*t)+nz(t*2.2,ph)*hw*.5*c;return [p0[0]+tx*d+nx*off,p0[1]+ty*d+ny*off];};
     const C=[],W=[];const n=Math.max(3,Math.round((a1-a0)/.5));
     for(let i=0;i<=n;i++){const d=lerp(a0,a1,i/n);C.push(P(d));
-      const press=kind==='flick'?lerp(.55,1,Math.min(1,d/(len*.4))):1;
-      W.push([hw*press*(1+nz(d*.05,ph+3)*.12*(1+c)+nz(d*.5,ph+9)*.03),hw*press*(1+nz(d*.05,ph+7)*.12*(1+c)+nz(d*.5,ph+11)*.03)]);}
+      let press=kind==='flick'?lerp(.55,1,Math.min(1,d/(len*.4))):1;
+      // pincel redondo: barriga no meio, afina nas pontas e as laterais ondulam
+      const tt=clamp(d/len,0,1);press*=lerp(1,.5+.5*Math.pow(Math.sin(Math.PI*tt),.5),rnd*.7);
+      W.push([hw*press*(1+nz(d*.05,ph+3)*.12*(1+c)+nz(d*.5,ph+9)*.03+nz(d*.022,ph+21)*.28*rnd),hw*press*(1+nz(d*.05,ph+7)*.12*(1+c)+nz(d*.5,ph+11)*.03+nz(d*.022,ph+29)*.28*rnd)]);}
     const rib=ribbon(C,W);polys.push(rib);if(kind==='main')core.push(rib);
+    // pincel redondo: a pincelada começa com a ponta arredondada de quem pousou o pincel
+    if(rnd>.02&&kind!=='flick'){const w=(W[0][0]+W[0][1])/2,rx=w*(.25+.6*rnd),ry=w*(.95+.08*rnd);const q=P(a0+rx*.45);const cp=[];
+      for(let k=0;k<=40;k++){const a=k/40*TAU;const j=1+nz(Math.cos(a)*1.4+ph,Math.sin(a)*1.4)*.08;const u=Math.cos(a)*rx*j,v=Math.sin(a)*ry*j;cp.push([q[0]+u*tx+v*nx,q[1]+u*ty+v*ny]);}
+      polys.push(cp);}
     // pelos curtos nas laterais
     if(kind!=='flick'){const nh=Math.round((a1-a0)/6*(.3+sp+fib*.4));for(let h=0;h<nh;h++){const i=Math.floor(r()*C.length);const sd=r()<.5?1:-1;const w=W[i][sd>0?0:1];
       const a=ang+(r()<.5?0:Math.PI)+sd*(.12+r()*.45)*(r()<.5?1:-1)*-1;const q=[C[i][0]+nx*w*sd*.9,C[i][1]+ny*w*sd*.9];const L=(1+r()*r()*6)*(.5+sp)*(.7+c*.6)*scale;
@@ -646,7 +659,7 @@ const buildMancha=(m,S)=>(m.form||'organica')==='reta'?buildReta(m,S):buildOrgan
 /* cache por mancha: só refaz a que mudou */
 const CACHE=new Map();
 function manchaShapes(m,S){
-  const k=JSON.stringify([m.x,m.y,m.w,m.h,m.dir,m.form,m.s,S.seed,S.chaos,S.deg,S.spike,S.fibers,S.dry,S.fit,S.strokes,DRAFT&&S.deg>0]);
+  const k=JSON.stringify([m.x,m.y,m.w,m.h,m.dir,m.form,m.s,S.seed,S.chaos,S.deg,S.spike,S.fibers,S.dry,S.fit,S.strokes,S.round,S.reach,DRAFT&&S.deg>0]);
   let v=CACHE.get(k);if(!v){v=buildMancha(m,S);CACHE.set(k,v);if(CACHE.size>80)CACHE.delete(CACHE.keys().next().value);}
   return v;
 }
@@ -714,7 +727,7 @@ const PALS={
   claro:{bg:'#E9E2D0',fg:'#071A18',bl:'#8E0E12'},
   amarelo:{bg:'#F4E21B',fg:'#0A0A0A',bl:'#C4121A'}
 };
-const DEF={seed:'verbum',chaos:.25,deg:0,spike:.55,fibers:.45,dry:.3,strokes:.5,fit:'metade',bleedSizes:false,layout:'dupla',size:'210x297',pw:210,ph:297,margin:15,guides:true,
+const DEF={seed:'verbum',chaos:.25,deg:0,spike:.55,fibers:.45,dry:.3,strokes:.5,round:.35,reach:6,fit:'metade',bleedSizes:false,layout:'dupla',size:'210x297',pw:210,ph:297,margin:15,guides:true,
   bg:'#FFFFFF',fg:'#0A0A0A',bl:'#000000',transparent:false,dpi:300,grain:true,
   M:[{x:15,y:15,w:90,h:267,dir:'auto',form:'organica',s:1},{x:225,y:15,w:180,h:133.5,dir:'auto',form:'organica',s:2}],sel:0};
 const PRESETS={
@@ -767,8 +780,8 @@ const $=id=>document.getElementById(id);
 $('sizes').innerHTML=SIZES.map(z=>`<button data-size="${z.k}" title="${z.k==='sv'?'Metade da largura do spread, centrada sobre a lombada':''}">${sizeIcon(z)}<span>${z.n}</span></button>`).join('');
 
 /* ---------- UI ---------- */
-const bindings=[['seed','text'],['margin','num',0],['fit','sel'],['bleedSizes','chk'],['guides','chk'],['bg','col'],['fg','col'],['bl','col'],['transparent','chk'],['dpi','num',0],['grain','chk']];
-const BOXES=[['chaos'],['deg'],['spike','aspereza'],['fibers','fibras'],['strokes','pinceladas'],['dry','secura']];
+const bindings=[['seed','text'],['reach','num',1],['margin','num',0],['fit','sel'],['bleedSizes','chk'],['guides','chk'],['bg','col'],['fg','col'],['bl','col'],['transparent','chk'],['dpi','num',0],['grain','chk']];
+const BOXES=[['chaos'],['deg'],['spike','aspereza'],['fibers','fibras'],['strokes','pinceladas'],['round','redondo'],['dry','secura']];
 function toUI(){
   BOXES.forEach(([k])=>$(k).value=Math.round((S[k]||0)*100));
   bindings.forEach(([k,t])=>{const el=$(k);if(!el)return;if(t==='chk')el.checked=!!S[k];else el.value=S[k];});
@@ -786,7 +799,7 @@ function selUI(){
 }
 function labels(){
   $('cval').textContent='entropia '+S.chaos.toFixed(2);$('dval').textContent='degeneração '+(S.deg||0).toFixed(2);
-  $('spikeV').textContent='aspereza '+S.spike.toFixed(2);$('fibersV').textContent='fibras '+S.fibers.toFixed(2);$('dryV').textContent='secura '+S.dry.toFixed(2);$('strokesV').textContent='pinceladas '+(S.strokes==null?.5:S.strokes).toFixed(2);
+  $('spikeV').textContent='aspereza '+S.spike.toFixed(2);$('fibersV').textContent='fibras '+S.fibers.toFixed(2);$('dryV').textContent='secura '+S.dry.toFixed(2);$('roundV').textContent='redondo '+(S.round==null?.35:S.round).toFixed(2);$('reachV').textContent=(S.reach==null?6:S.reach);$('strokesV').textContent='pinceladas '+(S.strokes==null?.5:S.strokes).toFixed(2);
   $('marginV').textContent=S.margin;$('customSize').style.display=S.size==='custom'?'flex':'none';
 }
 
@@ -813,7 +826,7 @@ function uiSVG(){
 }
 const f1=v=>(Math.round(v*10)/10).toString().replace('.',',');
 function handles(m){const{x,y,w,h}=m;return [[x,y,'nw'],[x+w/2,y,'n'],[x+w,y,'ne'],[x+w,y+h/2,'e'],[x+w,y+h,'se'],[x+w/2,y+h,'s'],[x,y+h,'sw'],[x,y+h/2,'w']];}
-function mmPerPx(){const sv=$('view').querySelector('svg');const W=pageInfo(S).W;if(!sv||!sv.clientWidth)return W/800;return W/sv.getBoundingClientRect().width;}
+function mmPerPx(){const sv=$('view').querySelector('svg');const W=pageInfo(S).W;const m=sv&&sv.getScreenCTM();if(!m||!m.a)return W/800;return 1/m.a;}
 
 let raf=0,hashT=0;
 function render(){cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{
@@ -823,7 +836,8 @@ function render(){cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{
 });}
 
 /* ---------- arrastar e redimensionar ---------- */
-function toMM(ev){const sv=$('view').querySelector('svg');const r=sv.getBoundingClientRect();const G=pageInfo(S);return [(ev.clientX-r.left)/r.width*G.W,(ev.clientY-r.top)/r.height*G.H];}
+// usa a matriz real do SVG: a prévia pode estar centralizada dentro de uma caixa mais larga (tela limitada pela altura)
+function toMM(ev){const sv=$('view').querySelector('svg');const pt=sv.createSVGPoint();pt.x=ev.clientX;pt.y=ev.clientY;const q=pt.matrixTransform(sv.getScreenCTM().inverse());return [q.x,q.y];}
 function hitTest(p){
   // borda ou canto da caixa = redimensionar; miolo = mover. A selecionada tem prioridade.
   const k=mmPerPx(),E=9*k,E2=E*2;
